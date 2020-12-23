@@ -9,7 +9,7 @@
 ## Task 1 (mandatory):
 ### Graphical Output
 For each frame the system should show labelled blobs (either by generating colored sections on black screen or their contours over the original video)
-## Text Output
+### Text Output
 For each frame the system should print:
 - Number of found objects
 - Values associated to blob's features
