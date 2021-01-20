@@ -131,3 +131,5 @@ dmypy.json
 # Multimedia files
 *.pdf
 *.avi
+
+.vscode/*
