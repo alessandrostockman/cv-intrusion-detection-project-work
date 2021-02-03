@@ -1,5 +1,3 @@
- # Video Editing Functions   
-
 import cv2
 
 def create_output_stream(cap, output_video_path):

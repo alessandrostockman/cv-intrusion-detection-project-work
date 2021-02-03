@@ -1,7 +1,5 @@
 import numpy as np
 
-# Frame Editing Functions
-
 def binarize_mask(mask, threshold=None):
     ''' This method takes the mask and binarize it. The return is a mask of float64 with values 0 or 255
     '''

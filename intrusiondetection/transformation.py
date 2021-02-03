@@ -161,13 +161,8 @@ class ConnectedComponentTransformation(Transformation):
         
         blobs = []
         for contour in contours:
-            blobs.append({
-                'label': 1,
-                'area': 10,
-                'perimeter': 20,
-                'classification': 'person'
-            })
-        return colored_frame
+            blobs.append(Blob(1, 10, 20))
+        return colored_frame, blobs
     
     def initialize_blob_detector(self):
         '''Initializes the parameters of the blob detector and returns the detector

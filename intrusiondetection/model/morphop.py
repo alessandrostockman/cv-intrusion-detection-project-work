@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 
-class MorphologyOperation:
+class MorphOp:
 
     def __init__(self, operation_type, kernel_size, kernel_shape=None):
         self.operation_type = operation_type
