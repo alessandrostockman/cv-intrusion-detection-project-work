@@ -48,7 +48,7 @@ class ChangeDetectionTransformation(Transformation):
         '''
         diff1 = two_frame_difference(prev_frame, curr_frame)
         diff2 = two_frame_difference(curr_frame, next_frame)
-        and_mask = np.prod([diff1, diff2],axis=0, dtype=bool)
+        and_mask = np.prod([diff1, diff2], axis=0, dtype=bool)
         return and_mask
 
     def background_subtraction(self, frame, background):
@@ -173,6 +173,48 @@ class ConnectedComponentTransformation(Transformation):
     def apply(self, mask):
         '''Detects the blobs and creates them. Returns the blobs (as dictionaries) and the respective frames with the contour drawn on it
         ''' 
+        _, thresh = cv2.threshold(mask.astype(np.uint8), 0, 255, cv2.THRESH_BINARY)
+        num_labels, labels = cv2.connectedComponents(thresh)
+
+        if num_labels <= 1:
+            return mask, mask, []
+
+        # Map component labels to hue val, 0-179 is the hue range in OpenCV
+        label_hue = np.uint8(179*labels/np.max(labels))
+        blank_ch = 255*np.ones_like(label_hue)
+        blob_frame = cv2.merge([label_hue, blank_ch, blank_ch])
+
+        # Converting cvt to BGR
+        blob_frame = cv2.cvtColor(blob_frame, cv2.COLOR_HSV2BGR)
+        blob_frame[label_hue==0] = 0
+        
+        blobs = []
+        countours_frame = np.zeros_like(self.parameters.frame)
+        for label in range(1, num_labels):
+            hue_color = 179*label/np.max(labels)
+            tmp = np.zeros(labels.shape, dtype=np.uint8)
+            tmp[labels == label] = 255
+            contour = self.parse_contours(tmp)
+            blobs.append(Blob(label, contour))
+
+            color = (int(hue_color), 255, 255)
+            cv2.drawContours(countours_frame, contour, -1, color, 3)
+            countours_frame = cv2.cvtColor(countours_frame, cv2.COLOR_HSV2BGR)
+
+        return countours_frame, blob_frame, blobs
+
+    def parse_contours(self, thresh):
+        ret = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if len(ret) > 2:
+            _, contours, hierarchy = ret
+        else:
+            contours, hierarchy = ret
+
+        return contours
+
+    def old(self, mask):
+        '''Detects the blobs and creates them. Returns the blobs (as dictionaries) and the respective frames with the contour drawn on it
+        ''' 
         ret, thresh = cv2.threshold(mask.astype(np.uint8), 0, 255, 0)
         ret = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if len(ret) > 2:
@@ -184,7 +226,7 @@ class ConnectedComponentTransformation(Transformation):
         
         blobs = []
         for contour in contours:
-            blobs.append(Blob(1))
+            blobs.append(Blob(1, contour))
         return colored_frame, blobs
     
     def initialize_blob_detector(self):
