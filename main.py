@@ -11,7 +11,7 @@ param_bag = ParameterList({
     "output_directory": "output",
     "threshold": [55],
     "distance": [euclidean],
-    "alpha": [0.02, 0.05],
+    "alpha": [0.02],
     "morphology_operations": [
         [MorphOp(cv2.MORPH_OPEN, (5,5)), MorphOp(cv2.MORPH_CLOSE, (30, 50), cv2.MORPH_RECT)]
     ],

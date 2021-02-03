@@ -23,7 +23,9 @@ class IntrusionDetectionAlgorithm:
         out = create_output_stream(cap, self.params.output_video)
         out1 = create_output_stream(cap, str(self.params) + "_cd.avi")
         out2 = create_output_stream(cap, str(self.params) + "_bm.avi")
-        out3 = create_output_stream(cap, str(self.params) + "_cc.avi")
+        out3 = create_output_stream(cap, str(self.params) + "_bg.avi")
+        out4 = create_output_stream(cap, str(self.params) + "_cont.avi")
+        out5 = create_output_stream(cap, str(self.params) + "_blob.avi")
         try:
             csv_file = open(self.params.output_text, mode='w')
             csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -37,15 +39,22 @@ class IntrusionDetectionAlgorithm:
 
                 frame1 = self.cd.apply(frame)
                 frame2 = self.bm.apply(frame1)
-                frame3, blobs = self.cc.apply(frame2)
+                frame3_contours, frame3_blob, blobs = self.cc.apply(frame2)
 
                 #blobs, colored_frame = blob_detection(mask_output, frame, parameters)
                 #append_text_output(idx, blobs, csv_writer)
                 
-                out.write(frame3)
+                #out.write(frame3)
+
+                out4.write(frame3_contours)
+                out5.write(frame3_blob)
                 out1.write(np.tile(frame1.astype(np.uint8)[:,:,np.newaxis], 3) * 255)
                 out2.write(np.tile(frame2[:,:,np.newaxis], 3) * 255)
                 out3.write(self.params.adaptive_background.astype(np.uint8))
                 frame_index += 1
+
+                csv_writer.writerow([frame_index, len(blobs)])
+                for blob in blobs:
+                    csv_writer.writerow([blob.label, blob.area, blob.perimeter, blob.blob_class])
         finally:
             csv_file.close()
