@@ -45,6 +45,7 @@ class IntrusionDetectionAlgorithm:
                 out.write(frame3)
                 out1.write(np.tile(frame1.astype(np.uint8)[:,:,np.newaxis], 3) * 255)
                 out2.write(np.tile(frame2[:,:,np.newaxis], 3) * 255)
+                out3.write(self.params.adaptive_background.astype(np.uint8))
                 frame_index += 1
         finally:
             csv_file.close()

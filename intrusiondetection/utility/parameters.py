@@ -44,12 +44,12 @@ class ParameterList:
 
     def __init__(self, params):
         global_keys = {'input_video', 'output_directory'}
-        tuning_keys = {'threshold', 'distance', 'alpha', 'background'}
+        tuning_keys = {'threshold', 'distance', 'alpha', 'background', 'morphology_operations'}
 
         global_params = {key: val for key, val in params.items() if key in global_keys}
 
         background = params['background']
-        params['background'] = background_set_initialization(global_params['input_video'], background) #[] #TODO
+        params['background'] = background_set_initialization(global_params['input_video'], background)  #TODO
 
         tuning_params = {key: [val] if not isinstance(val, list) else val if len(val) > 0 else [None] for key, val in params.items() if key in tuning_keys}
 
@@ -68,6 +68,7 @@ class ParameterSet:
         self.distance = tuning_params['distance']
         self.alpha = tuning_params['alpha']
         self.background = tuning_params['background']
+        self.morphology_operations = tuning_params['morphology_operations']
 
         if self.background is not None:
             self.adaptive_background = self.background['image']

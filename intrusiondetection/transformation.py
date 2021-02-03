@@ -63,6 +63,7 @@ class ChangeDetectionTransformation(Transformation):
     def blind_background(self, frame, alpha):
         new_bg = self.parameters.adaptive_background * (1-alpha)
         new_bg = new_bg + frame * alpha
+        
         return new_bg
         
     def background_set_initialization(self, input_video_path, parameter_set):
@@ -136,12 +137,8 @@ class BinaryMorphologyTransformation(Transformation):
             Applies the binary morphology on the mask and returns it as a matrix of Boolean
         '''
         mask = mask.astype(np.uint8)
-        kernel1 = np.ones((5,5), np.uint8)
-        kernel2 = np.ones((20,20), np.uint8)
-
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel1)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel1)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel2)
+        for op in self.parameters.morphology_operations:
+            mask = cv2.morphologyEx(mask, op.operation_type, op.kernel)
         return mask
 
 class ConnectedComponentTransformation(Transformation):
