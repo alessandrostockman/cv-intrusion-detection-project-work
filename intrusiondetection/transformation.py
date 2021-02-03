@@ -158,7 +158,7 @@ class BinaryMorphologyTransformation(Transformation):
             Applies the binary morphology on the mask and returns it as a matrix of Boolean
         '''
         mask = mask.astype(np.uint8)
-        for op in self.parameters.morphology_operations:
+        for op in self.parameters.morph_ops:
             mask = cv2.morphologyEx(mask, op.operation_type, op.kernel)
         return mask
 

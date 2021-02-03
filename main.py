@@ -4,6 +4,7 @@ import cv2
 from intrusiondetection.algorithm import IntrusionDetectionAlgorithm
 from intrusiondetection.utility.parameters import ParameterList
 from intrusiondetection.model.morphop import MorphOp
+from intrusiondetection.model.morphop import MorphOpsSet
 from intrusiondetection.utility.distance import euclidean
 
 param_bag = ParameterList({
@@ -12,8 +13,8 @@ param_bag = ParameterList({
     "threshold": [55],
     "distance": [euclidean],
     "alpha": [0.02, 0.05],
-    "morphology_operations": [
-        [MorphOp(cv2.MORPH_OPEN, (5,5)), MorphOp(cv2.MORPH_CLOSE, (30, 50), cv2.MORPH_RECT)]
+    "morph_ops": [
+        MorphOpsSet(MorphOp(cv2.MORPH_OPEN, (5,5)), MorphOp(cv2.MORPH_CLOSE, (30, 50), cv2.MORPH_RECT))
     ],
     "background": {
         "frames": [60],
