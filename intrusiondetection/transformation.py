@@ -1,12 +1,12 @@
-from abc import ABC
-from abc import abstractmethod
+import csv
+from abc import ABC, abstractmethod
+
+import numpy as np
+from scipy.ndimage import morphology
 
 import cv2
-import numpy as np
-import csv
-
 from intrusiondetection.utility.frame import binarize_mask
-from intrusiondetection.model.blob import Blob
+
 
 class Transformation(ABC):
 
@@ -32,9 +32,8 @@ class ChangeDetectionTransformation(Transformation):
         '''
         #mask = self.background_subtraction_mog2(frame)
         #mask = self.background_subtraction(frame, TODO: background)
-        background = self.blind_background(frame, self.parameters.alpha)
-        self.parameters.adaptive_background = background
-        mask = self.background_subtraction(frame, background)
+        self.update_blind_background(frame)
+        mask = self.background_subtraction(frame, self.parameters.adaptive_background)
         return mask
 
     def two_frame_difference(self, prev_frame, curr_frame):
@@ -61,11 +60,27 @@ class ChangeDetectionTransformation(Transformation):
         return mask
 
 
-    def blind_background(self, frame, alpha):
-        new_bg = self.parameters.adaptive_background * (1-alpha)
-        new_bg = new_bg + frame * alpha
-        
+    def update_blind_background(self, frame):
+        self.parameters.adaptive_background = compute_blind_background(frame)
+
+    def compute_blind_background(self, frame):
+        new_bg = self.parameters.adaptive_background * (1-self.parameters.alpha)
+        new_bg = new_bg + frame * self.parameters.alpha
         return new_bg
+
+   
+    def binary_morph(self, subtraction):
+        kernel = np.ones((4,4), np.uint8)
+        dilated_bg = cv2.dilate(subtraction,kernel)
+        closed_bg = cv2.morphologyEx(dilated_bg,cv2.MORPH_CLOSE, kerner)
+        return closed_bg
+    
+    def update_selective_background(self, frame):
+        new_bg = np.copy(self.parameters.adaptive_background)
+        subtraction = self.background_subtraction(frame, self.parameters.adaptive_background)
+        binary_res = self.binary_morph(subtraction)
+        new_bg[binary_res == 0] = self.compute_blind_background(frame)
+        self.parameters.adaptive_background= new_bg
         
     def background_set_initialization(self, input_video_path, parameter_set):
         ''' 
@@ -162,7 +177,7 @@ class ConnectedComponentTransformation(Transformation):
         
         blobs = []
         for contour in contours:
-            blobs.append(Blob(1))
+            blobs.append(Blob(1, 10, 20))
         return colored_frame, blobs
     
     def initialize_blob_detector(self):
