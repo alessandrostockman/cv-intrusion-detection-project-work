@@ -84,7 +84,7 @@ class ChangeDetectionTransformation(Transformation):
         mask2 = mask1.copy()
         mask1[binary_res == 0] = 1
         mask2[binary_res != 0] = 1
-        new_bg = self.compute_blind_background(frame)[:,:,0] * mask2 + new_bg[:,:,0] * mask1
+        new_bg = self.compute_blind_background(frame)[:,:,0] * mask1 + new_bg[:,:,0] * mask2
         self.parameters.adaptive_background = np.tile(new_bg[:,:,np.newaxis], 3)
         
     def background_set_initialization(self, input_video_path, parameter_set):
