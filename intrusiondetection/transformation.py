@@ -6,6 +6,7 @@ import numpy as np
 import csv
 
 from intrusiondetection.utility.frame import binarize_mask
+from intrusiondetection.model.blob import Blob
 
 class Transformation(ABC):
 
@@ -161,7 +162,7 @@ class ConnectedComponentTransformation(Transformation):
         
         blobs = []
         for contour in contours:
-            blobs.append(Blob(1, 10, 20))
+            blobs.append(Blob(1))
         return colored_frame, blobs
     
     def initialize_blob_detector(self):

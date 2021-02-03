@@ -37,7 +37,7 @@ class IntrusionDetectionAlgorithm:
 
                 frame1 = self.cd.apply(frame)
                 frame2 = self.bm.apply(frame1)
-                frame3 = self.cc.apply(frame2)
+                frame3, blobs = self.cc.apply(frame2)
 
                 #blobs, colored_frame = blob_detection(mask_output, frame, parameters)
                 #append_text_output(idx, blobs, csv_writer)
