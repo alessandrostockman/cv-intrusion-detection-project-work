@@ -1,8 +1,8 @@
 from abc import ABC
 from abc import abstractmethod
+
 import cv2
 import numpy as np
-
 import csv
 
 from intrusiondetection.utility.frame import binarize_mask

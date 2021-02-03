@@ -1,9 +1,10 @@
+import numpy as np
+import cv2
+
 from intrusiondetection.algorithm import IntrusionDetectionAlgorithm
 from intrusiondetection.utility.parameters import ParameterList
 from intrusiondetection.model.morphology_operation import MorphologyOperation
 from intrusiondetection.utility.distance import euclidean
-import numpy as np
-import cv2
 
 param_bag = ParameterList({
     "input_video": "rilevamento-intrusioni-video.avi",
