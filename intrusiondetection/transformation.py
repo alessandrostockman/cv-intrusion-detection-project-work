@@ -160,8 +160,8 @@ class BinaryMorphologyTransformation(Transformation):
             Applies the binary morphology on the mask and returns it as a matrix of Boolean
         '''
         mask = mask.astype(np.uint8)
-        for op in self.parameters.morph_ops:
-            mask = cv2.morphologyEx(mask, op.operation_type, op.kernel)
+        for op in self.parameters.morph_ops.get():
+            mask = cv2.morphologyEx(mask, op.operation_type, op.kernel, iterations=op.iterations)
         return mask
 
 class ConnectedComponentTransformation(Transformation):

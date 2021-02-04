@@ -14,7 +14,7 @@ param_bag = ParameterList({
     "distance": [euclidean],
     "alpha": [0.02],
     "morph_ops": [
-        MorphOpsSet(MorphOp(cv2.MORPH_OPEN, (4,4)), MorphOp(cv2.MORPH_CLOSE, (20,25), cv2.MORPH_RECT))
+        MorphOpsSet(MorphOp(cv2.MORPH_OPEN, (4,4)), MorphOp(cv2.MORPH_CLOSE, (20,25), cv2.MORPH_RECT), MorphOp(cv2.MORPH_OPEN, (20,20)))
     ],
     "background": {
         "frames": [60],
