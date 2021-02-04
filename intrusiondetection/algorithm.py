@@ -26,6 +26,8 @@ class IntrusionDetectionAlgorithm:
         out3 = create_output_stream(cap, str(self.params) + "_bg.avi")
         out4 = create_output_stream(cap, str(self.params) + "_cont.avi")
         out5 = create_output_stream(cap, str(self.params) + "_blob.avi")
+        out6 = create_output_stream(cap, str(self.params) + "_sub.avi")
+        out7 = create_output_stream(cap, str(self.params) + "_mor.avi")
         try:
             csv_file = open(self.params.output_text, mode='w')
             csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -52,6 +54,9 @@ class IntrusionDetectionAlgorithm:
                 out2.write(np.tile(frame2[:,:,np.newaxis], 3) * 255)
                 out3.write(self.params.adaptive_background.astype(np.uint8))
                 frame_index += 1
+
+                out6.write(np.tile(self.params.sub[:,:,np.newaxis], 3))
+                out7.write(np.tile(self.params.mor[:,:,np.newaxis], 3))
 
                 csv_writer.writerow([frame_index, len(blobs)])
                 for blob in blobs:

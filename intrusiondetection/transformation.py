@@ -69,18 +69,20 @@ class ChangeDetectionTransformation(Transformation):
         return new_bg
 
    
-    def binary_morph(self, subtraction):
-        kernel_open= np.ones((3,3), np.uint8)
-        opened_bg = cv2.morphologyEx(subtraction.astype(np.uint8), cv2.MORPH_OPEN, kernel_open)
-        #dilated_bg = cv2.dilate(subtraction.astype(np.uint8),kernel)
-        kernel_close = np.ones((5,8), np.uint8)
-        closed_bg = cv2.morphologyEx(opened_bg,cv2.MORPH_CLOSE, kernel_close)
-        return opened_bg
+    def binary_morph(self, mask):
+        mask = mask.astype(np.uint8)
+        for op in self.parameters.background_morph_ops.get():
+            mask = cv2.morphologyEx(mask, op.operation_type, op.kernel, iterations=op.iterations)
+        return mask
     
     def update_selective_background(self, frame):
         new_bg = np.copy(self.parameters.adaptive_background)
         subtraction = self.background_subtraction(frame, self.parameters.adaptive_background)
         binary_res = self.binary_morph(subtraction)
+        self.parameters.sub = np.zeros(subtraction.shape, dtype=np.uint8)
+        self.parameters.mor = binary_res
+        self.parameters.sub[subtraction] = 255
+        self.parameters.mor[self.parameters.mor == 1] = 255
 
         mask1 = np.zeros(binary_res.shape, dtype=int)
         mask2 = mask1.copy()

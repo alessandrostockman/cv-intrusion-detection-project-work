@@ -10,14 +10,17 @@ from intrusiondetection.utility.distance import euclidean
 param_bag = ParameterList({
     "input_video": "rilevamento-intrusioni-video.avi",
     "output_directory": "output",
-    "threshold": [35],
+    "threshold": [65],
     "distance": [euclidean],
-    "alpha": [0.02],
+    "background_morph_ops": [
+        MorphOpsSet(MorphOp(cv2.MORPH_OPEN, (3,3)), MorphOp(cv2.MORPH_CLOSE, (5,8)))
+    ],
+    "alpha": [0.5],
     "morph_ops": [
-        MorphOpsSet(MorphOp(cv2.MORPH_OPEN, (4,4)), MorphOp(cv2.MORPH_CLOSE, (20,25), cv2.MORPH_RECT), MorphOp(cv2.MORPH_OPEN, (20,20)))
+        MorphOpsSet(MorphOp(cv2.MORPH_OPEN, (4,4)), MorphOp(cv2.MORPH_CLOSE, (20,25), cv2.MORPH_RECT))
     ],
     "background": {
-        "frames": [60],
+        "frames": [80],
         "interpolation": [np.median]
     }
 })
