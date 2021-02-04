@@ -7,6 +7,8 @@ import cv2
 from intrusiondetection.utility.frame import binarize_mask
 from intrusiondetection.model.blob import Blob
 
+from copy import copy
+
 
 class Transformation(ABC):
 
@@ -180,30 +182,75 @@ class ConnectedComponentTransformation(Transformation):
 
         if num_labels <= 1:
             return mask, mask, []
-
-        # Map component labels to hue val, 0-179 is the hue range in OpenCV
-        label_hue = np.uint8(179*labels/np.max(labels))
-        blank_ch = 255*np.ones_like(label_hue)
-        blob_frame = cv2.merge([label_hue, blank_ch, blank_ch])
-
-        # Converting cvt to BGR
-        blob_frame = cv2.cvtColor(blob_frame, cv2.COLOR_HSV2BGR)
-        blob_frame[label_hue==0] = 0
         
         blobs = []
         countours_frame = np.zeros_like(self.parameters.frame)
+        new_labels = 0
+        check_diss = len(self.parameters.previous_blobs) > num_labels #TODO Remove
+        previous_blobs = copy(self.parameters.previous_blobs)
         for label in range(1, num_labels):
-            hue_color = 179*label/np.max(labels)
-            tmp = np.zeros(labels.shape, dtype=np.uint8)
-            tmp[labels == label] = 255
-            contour = self.parse_contours(tmp)
-            blobs.append(Blob(label, contour))
+            blob_image = np.zeros(labels.shape, dtype=np.uint8) 
+            blob_image[labels == label] = 1
+            contour = self.parse_contours(blob_image)
 
+            blob = Blob(contour)
+            label_id = None
+            prev_labels_number = max([x.label for x in self.parameters.previous_blobs]) if len(self.parameters.previous_blobs) > 0 else 0
+            if len(previous_blobs) > 0:
+                best_blob = None
+                best_dissimilarity = 1000000
+                best_index = -1
+                for index, candidate_blob in enumerate(previous_blobs):
+                    dissimilarity = self.compute_dissimilarity(candidate_blob, blob)
+                    if dissimilarity < best_dissimilarity and dissimilarity < 5000: # T to change
+                        best_blob = candidate_blob
+                        best_dissimilarity = dissimilarity
+                        best_index = index
+                    
+                    if check_diss:
+                        print(dissimilarity)
+                
+                if best_blob is not None:
+                    label_id = best_blob.label
+                    previous_blobs.pop(best_index)
+            
+            if label_id is None:
+                new_labels += 1
+                label_id = new_labels + prev_labels_number
+                print("New object found:", label_id, "Prev Label:", prev_labels_number, "New:", new_labels)
+
+            blob.label = label_id
+            blob.image = blob_image
+            blobs.append(blob)
+
+        final_blob_frame = np.tile(np.zeros(blob_image.shape, dtype=np.uint8)[:,:,np.newaxis], 3)
+        final_cont_frame = np.tile(np.zeros(blob_image.shape, dtype=np.uint8)[:,:,np.newaxis], 3)
+        for blob in blobs:
+            #hue_color = 179 * blob.id / (new_labels + prev_labels_number)
+            hue_color = 179 / blob.label
             color = (int(hue_color), 255, 255)
             cv2.drawContours(countours_frame, contour, -1, color, 3)
             countours_frame = cv2.cvtColor(countours_frame, cv2.COLOR_HSV2BGR)
+            final_cont_frame = final_cont_frame + countours_frame
 
-        return countours_frame, blob_frame, blobs
+            # Map component labels to hue val, 0-179 is the hue range in OpenCV
+            label_hue = blob.image * hue_color
+            blank_ch = 255*np.ones_like(label_hue)*blob.image
+            blob_frame = cv2.merge([label_hue, blank_ch, blank_ch])
+
+            # Converting cvt to BGR
+            blob_frame = cv2.cvtColor(blob_frame.astype(np.uint8), cv2.COLOR_HSV2BGR)
+            final_blob_frame = final_blob_frame + blob_frame
+        
+        self.parameters.previous_blobs = blobs
+
+        return countours_frame, final_blob_frame, blobs
+
+    def compute_dissimilarity(self, candidate_blob, blob):
+        area_diff = abs(candidate_blob.area - blob.area)
+        barycenter_diff = abs((candidate_blob.cx - blob.cx) + (candidate_blob.cy - blob.cy))
+        return area_diff + barycenter_diff
+
 
     def parse_contours(self, thresh):
         ret = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)

@@ -73,6 +73,7 @@ class ParameterSet:
 
         if self.background is not None:
             self.adaptive_background = self.background['image']
+        self.previous_blobs = []
 
         self.output_video = str(self) + ".avi"
         self.output_text = str(self) + ".csv"

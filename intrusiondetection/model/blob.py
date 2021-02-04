@@ -3,9 +3,9 @@ import cv2
 
 class Blob:
 
-    def __init__(self, label, cnts):
+    def __init__(self, cnts):
         cnts = cnts[0]
-        self.label = label
+        self.label = None
         self.blob_class = BlobClass.PERSON
 
         self.area = cv2.contourArea(cnts)
