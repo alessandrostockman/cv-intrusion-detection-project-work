@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 import cv2
-from intrusiondetection.utility.frame import binarize_mask
 from intrusiondetection.model.blob import Blob
 
 from copy import copy
@@ -193,7 +192,7 @@ class ConnectedComponentTransformation(Transformation):
             blob_image[labels == label] = 1
             contour = self.parse_contours(blob_image)
 
-            blob = Blob(contour)
+            blob = Blob(contour, self.parameters.frame)
             label_id = None
             prev_labels_number = max([x.label for x in self.parameters.previous_blobs]) if len(self.parameters.previous_blobs) > 0 else 0
             if len(previous_blobs) > 0:
@@ -226,9 +225,12 @@ class ConnectedComponentTransformation(Transformation):
         final_blob_frame = np.tile(np.zeros(blob_image.shape, dtype=np.uint8)[:,:,np.newaxis], 3)
         final_cont_frame = np.tile(np.zeros(blob_image.shape, dtype=np.uint8)[:,:,np.newaxis], 3)
         for blob in blobs:
-            #hue_color = 179 * blob.id / (new_labels + prev_labels_number)
-            hue_color = 179 / blob.label
-            color = (int(hue_color), 255, 255)
+            if blob.is_true_object(60):
+                hue_color = 179 / blob.label
+                color = (int(hue_color), 255, 255)
+            else:
+                hue_color = 90
+                color = (int(hue_color), 128, 128)
             cv2.drawContours(countours_frame, contour, -1, color, 3)
             countours_frame = cv2.cvtColor(countours_frame, cv2.COLOR_HSV2BGR)
             final_cont_frame = final_cont_frame + countours_frame
@@ -242,6 +244,14 @@ class ConnectedComponentTransformation(Transformation):
             blob_frame = cv2.cvtColor(blob_frame.astype(np.uint8), cv2.COLOR_HSV2BGR)
             final_blob_frame = final_blob_frame + blob_frame
         
+        '''
+        final_blob_frame = np.zeros(blob_image.shape, dtype=np.uint8)
+        for blob in blobs:
+            blob.test(self.parameters.frame)
+            blob_frame = blob.image * blob.g
+            final_blob_frame = final_blob_frame + blob_frame.astype(np.uint8)
+        final_blob_frame = np.tile(final_blob_frame[:,:,np.newaxis], 3)
+        '''
         self.parameters.previous_blobs = blobs
 
         return countours_frame, final_blob_frame, blobs

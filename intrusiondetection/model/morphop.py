@@ -18,6 +18,10 @@ class MorphOp:
             name += "C"
         elif self.operation_type == cv2.MORPH_OPEN:
             name += "O"
+        elif self.operation_type == cv2.MORPH_DILATE:
+            name += "D"
+        elif self.operation_type == cv2.MORPH_ERODE:
+            name += "E"
 
         x, y = self.kernel_size
         name += str(x) + "x" + str(y)
