@@ -1,10 +1,8 @@
 import csv
-
 import numpy as np
-
 import cv2
-from intrusiondetection.utility.frame import binarize_mask
-from intrusiondetection.model.blob import Blob
+
+from intrusiondetection.model import Blob
 
 class ChangeDetectionTransformation:
 

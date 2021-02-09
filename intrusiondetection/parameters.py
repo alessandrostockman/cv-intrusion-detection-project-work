@@ -1,6 +1,6 @@
+import itertools
 import numpy as np
 import cv2
-import itertools
 
 def background_set_initialization(input_video_path, background):
     ''' 
