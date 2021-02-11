@@ -1,7 +1,6 @@
 import numpy as np
 import cv2
 
-from intrusiondetection.algorithm import IntrusionDetectionAlgorithm
 from intrusiondetection.parameters import ParameterList
 from intrusiondetection.utility import distance_euclidean
 from intrusiondetection.model import MorphOp, MorphOpsSet, Video
@@ -9,17 +8,17 @@ from intrusiondetection.model import MorphOp, MorphOpsSet, Video
 param_bag = ParameterList({
     "input_video": "rilevamento-intrusioni-video.avi",
     "output_directory": "output",
-    "threshold": [65],
+    "threshold": [37],
     "distance": [distance_euclidean],
     "background_morph_ops": [
-        MorphOpsSet(MorphOp(cv2.MORPH_OPEN, (3,3)), MorphOp(cv2.MORPH_CLOSE, (5,8)))
+        MorphOpsSet(MorphOp(cv2.MORPH_CLOSE, (3,3), iterations=1),MorphOp(cv2.MORPH_OPEN, (3,3), iterations=2), MorphOp(cv2.MORPH_DILATE, (25,10)), MorphOp(cv2.MORPH_ERODE, (15,5)))
     ],
-    "alpha": [0.5],
+    "alpha": [0.1],
     "morph_ops": [
-        MorphOpsSet(MorphOp(cv2.MORPH_OPEN, (4,4)), MorphOp(cv2.MORPH_CLOSE, (20,25), cv2.MORPH_RECT))
+        MorphOpsSet(MorphOp(cv2.MORPH_OPEN, (3,3)), MorphOp(cv2.MORPH_CLOSE, (5,5), iterations=3), MorphOp(cv2.MORPH_CLOSE, (40,3)))#MorphOp(cv2.MORPH_CLOSE, (10,3), iterations=3))
     ],
     "background": {
-        "frames": [80],
+        "frames": [100],
         "interpolation": [np.median]
     }
 })
