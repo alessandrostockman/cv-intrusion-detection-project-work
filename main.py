@@ -1,17 +1,15 @@
 import numpy as np
 import cv2
 
-from intrusiondetection.algorithm import IntrusionDetectionAlgorithm
-from intrusiondetection.utility.parameters import ParameterList
-from intrusiondetection.model.morphop import MorphOp
-from intrusiondetection.model.morphop import MorphOpsSet
-from intrusiondetection.utility.distance import *
+from intrusiondetection.parameters import ParameterList
+from intrusiondetection.utility import distance_euclidean
+from intrusiondetection.model import MorphOp, MorphOpsSet, Video
 
 param_bag = ParameterList({
     "input_video": "rilevamento-intrusioni-video.avi",
     "output_directory": "output",
     "threshold": [37],
-    "distance": [euclidean],
+    "distance": [distance_euclidean],
     "background_morph_ops": [
         MorphOpsSet(MorphOp(cv2.MORPH_CLOSE, (3,3), iterations=1),MorphOp(cv2.MORPH_OPEN, (3,3), iterations=2), MorphOp(cv2.MORPH_DILATE, (25,10)), MorphOp(cv2.MORPH_ERODE, (15,5)))
     ],
@@ -26,5 +24,6 @@ param_bag = ParameterList({
 })
 
 for params in param_bag:
-    ida = IntrusionDetectionAlgorithm(params)
-    ida.execute()
+    video = Video(params)
+    video.intrusion_detection()
+
