@@ -2,12 +2,13 @@ import csv
 import numpy as np
 import cv2
 from enum import Enum
+from copy import copy
 
 class Video:
 
     def __init__(self, params):
-        video_output_streams = ['subtraction', 'mask_raw', 'mask_refined', 'image']
-        video_bg_output_streams = ['subtraction', 'mask_raw', 'mask_refined', 'image', 'blind']
+        video_output_streams = ['blobs_contours', 'blobs_filled'] #['subtraction', 'mask_raw', 'mask_refined', 'image']
+        video_bg_output_streams = [] #['subtraction', 'mask_raw', 'mask_refined', 'image', 'blind']
 
         # outputs = ['mask_raw','mask_refined','bg_image','blob_cont','blob_fill','bg_mask_raw','bg_mask_refined'] TODO
 
@@ -28,6 +29,7 @@ class Video:
             csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
 
             bg = self.params.background
+            blobs = []
             while self.cap.isOpened():
                 ret, frame = self.cap.read()
                 self.params.frame = frame
@@ -35,19 +37,24 @@ class Video:
                     print("Computation finished! Video saved in {}".format(self.params.output_video))
                     break
 
-                fr = Frame(frame[:,:,0], bg)
+                fr = Frame(frame, bg)
                 bg.image = bg.update_selective(fr, self.params.threshold, self.params.distance, self.params.alpha, self.params.background_morph_ops)
                 fr.apply_change_detection(self.params.threshold, self.params.distance)
                 fr.apply_morphology_operators(self.params.morph_ops)
-                fr.apply_blob_analysis()
+                fr.apply_blob_analysis(blobs)
+                blobs = fr.blobs #TODO Meglio
 
                 for key, out in self.outputs.items():
                     x = getattr(fr, key)
-                    out.write(np.tile(x[:,:,np.newaxis], 3))
+                    if x.shape[-1] != 3:
+                        x = np.tile(x[:,:,np.newaxis], 3)
+                    out.write(x)
 
                 #TODO Migliorare?
                 for key, out in self.bg_outputs.items():
                     x = getattr(bg, key)
+                    if x.shape[-1] != 3:
+                        x = np.tile(x[:,:,np.newaxis], 3)
                     out.write(np.tile(x[:,:,np.newaxis], 3))
 
                 fr.write_text_output(csv_writer, frame_index=self.frame_index)
@@ -68,7 +75,8 @@ class Video:
 class Frame:
 
     def __init__(self, image, background):
-        self.image = image
+        self.image = image[:,:,0]
+        self.image_triple_channel = image
         self.background = background
         self.subtraction = None
         self.mask_raw = None
@@ -85,23 +93,87 @@ class Frame:
     def apply_morphology_operators(self, morph_ops):
         self.mask_refined = morph_ops.apply(self.mask_raw.copy())
 
-    def apply_blob_analysis(self):
-
+    def apply_blob_analysis(self, previous_blobs, similarity_threshold=5000):
         '''Detects the blobs and creates them. Returns the blobs (as dictionaries) and the respective frames with the contour drawn on it
         ''' 
         num_labels, labels = cv2.connectedComponents(self.mask_refined)
 
         if num_labels <= 1:
+            self.blobs = []
+            self.blobs_filled = self.image
+            self.blobs_contours = self.image
             return
         
+        new_labels = 0
         blobs = []
         for curr_label in range(1, num_labels):
-            blob_image = np.where(labels == curr_label, 255, 0).astype(np.uint8)
-            blobs.append(Blob(curr_label, blob_image))
+            blob_mask = np.where(labels == curr_label, 255, 0).astype(np.uint8)
+            
+            blob = Blob(self.image, blob_mask)
+            matched_label = blob.search_matching_blob(previous_blobs, similarity_threshold)
+
+            if matched_label is None:
+                prev_labels_number = max([x.label for x in previous_blobs], default=0)
+                new_labels += 1
+                matched_label = new_labels + prev_labels_number
+                print("New object found:", matched_label, "Prev Label:", prev_labels_number, "New:", new_labels)
+                
+            blob.label = matched_label
+            blobs.append(blob)
+
+        blob_frame = self.image_triple_channel.copy()
+        cont_frame = self.image_triple_channel.copy()
+        color_palette = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255), (128, 0, 0)]
+        for index, blob in enumerate(blobs):
+            color = color_palette[index]
+
+            countours_frame = np.zeros((self.image.shape[0], self.image.shape[1], 3), dtype=np.uint8)
+            cv2.drawContours(countours_frame, blob.cnts, -1, color, 3)
+            cont_frame[np.sum(countours_frame, axis=-1) > 0] = color
+
+            blob_frame[blob.mask > 0] = color
 
         self.blobs = blobs
-        self.blobs_filled = None
-        self.blobs_contours = None
+        self.blobs_filled = blob_frame
+        self.blobs_contours = cont_frame
+
+    def alt_blob():
+        countours_frame = np.zeros_like(self.parameters.frame)
+        check_diss = len(self.parameters.previous_blobs) > num_labels #TODO Remove
+        #XXX
+        final_blob_frame = np.tile(np.zeros(blob_image.shape, dtype=np.uint8)[:,:,np.newaxis], 3)
+        final_cont_frame = np.tile(np.zeros(blob_image.shape, dtype=np.uint8)[:,:,np.newaxis], 3)
+        for blob in blobs:
+            if blob.is_true_object(60):
+                hue_color = 179 / blob.label
+                color = (int(hue_color), 255, 255)
+            else:
+                hue_color = 90
+                color = (int(hue_color), 128, 128)
+            cv2.drawContours(countours_frame, contour, -1, color, 3)
+            countours_frame = cv2.cvtColor(countours_frame, cv2.COLOR_HSV2BGR)
+            final_cont_frame = final_cont_frame + countours_frame
+
+            # Map component labels to hue val, 0-179 is the hue range in OpenCV
+            label_hue = blob.image * hue_color
+            blank_ch = 255*np.ones_like(label_hue)*blob.image
+            blob_frame = cv2.merge([label_hue, blank_ch, blank_ch])
+
+            # Converting cvt to BGR
+            blob_frame = cv2.cvtColor(blob_frame.astype(np.uint8), cv2.COLOR_HSV2BGR)
+            final_blob_frame = final_blob_frame + blob_frame
+
+        '''
+        final_blob_frame = np.zeros(blob_image.shape, dtype=np.uint8)
+        for blob in blobs:
+            blob.test(self.parameters.frame)
+            blob_frame = blob.image * blob.g
+            final_blob_frame = final_blob_frame + blob_frame.astype(np.uint8)
+        final_blob_frame = np.tile(final_blob_frame[:,:,np.newaxis], 3)
+        '''
+        self.parameters.previous_blobs = blobs
+
+        return countours_frame, final_blob_frame, blobs
 
     def write_text_output(self, csv_writer, frame_index):
         csv_writer.writerow([frame_index, len(self.blobs)])
@@ -185,6 +257,10 @@ class MorphOp:
             name += "C"
         elif self.operation_type == cv2.MORPH_OPEN:
             name += "O"
+        elif self.operation_type == cv2.MORPH_DILATE:
+            name += "D"
+        elif self.operation_type == cv2.MORPH_ERODE:
+            name += "E"
 
         x, y = self.kernel_size
         name += str(x) + "x" + str(y)
@@ -207,8 +283,49 @@ class MorphOpsSet:
 
 class Blob:
 
-    def parse_contours(self, thresh):
-        ret = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    def __init__(self, frame, mask):
+        self.label = None
+        self.blob_class = BlobClass.PERSON
+        self.cnts = self.parse_contours(mask)[0]
+        self.image = frame
+        self.mask = mask
+
+        self.area = cv2.contourArea(self.cnts)
+        self.perimeter = cv2.arcLength(self.cnts, True)
+        M = cv2.moments(self.cnts)
+        self.cx = int(M['m10']/M['m00'])
+        self.cy = int(M['m01']/M['m00'])
+
+        sum = len(self.cnts)
+        val = 0
+        x_max, y_max = frame.shape
+        for coord in self.cnts:
+            y, x = coord[0][0], coord[0][1]
+
+            if y <= 0 or y >= y_max - 1 or x <= 0 or x >= x_max - 1:
+                dx = 0
+                dy = 0
+            else:
+                dx = self.i4y(frame, x, y+1) - self.i4y(frame, x, y-1)
+                dy = self.i4x(frame, x+1, y) - self.i4x(frame, x-1, y)
+
+            val += max(abs(dx), abs(dy))
+        self.edge_strength = val / sum
+
+    def is_true_object(self, threshold):
+        return self.edge_strength > threshold
+
+    def i4x(self, frame, i, j):
+        return 1/4 * frame[i, j-1] + 2 * frame[i, j] + frame[i, j+1]
+
+    def i4y(self, frame, i, j):
+        return 1/4 * frame[i-1, j] + 2 * frame[i, j] + frame[i+1, j]
+
+    def attributes(self):
+        return [self.label, self.area, self.perimeter, self.blob_class]
+
+    def parse_contours(self, image):
+        ret = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if len(ret) > 2:
             _, contours, hierarchy = ret
         else:
@@ -216,22 +333,31 @@ class Blob:
 
         return contours
 
-    def __init__(self, label, image):
-        cnts = self.parse_contours(image)
-        cnts = cnts[0]
-        self.label = label
-        self.blob_class = BlobClass.PERSON
+    def search_matching_blob(self, previous_blobs, threshold):
+        previous_blobs = copy(previous_blobs)
+        label = None
+        if len(previous_blobs) > 0:
+            best_blob = None
+            best_dissimilarity = 1000000
+            best_index = -1
+            for index, candidate_blob in enumerate(previous_blobs):
+                dissimilarity = self.dissimilarity(candidate_blob)
+                if dissimilarity < threshold and dissimilarity < best_dissimilarity:
+                    best_blob = candidate_blob
+                    best_dissimilarity = dissimilarity
+                    best_index = index
 
-        self.area = cv2.contourArea(cnts)
-        self.perimeter = cv2.arcLength(cnts, True)
-        M = cv2.moments(cnts)
-        if M['m00'] == 0:
-            return # TODO ???
-        self.cx = int(M['m10']/M['m00'])
-        self.cy = int(M['m01']/M['m00'])
+            if best_blob is not None:
+                label = best_blob.label
+                previous_blobs.pop(best_index)
+        return label
 
-    def attributes(self):
-        return [self.label, self.area, self.perimeter, self.blob_class]
+    def dissimilarity(self, other):
+        area_diff = abs(other.area - self.area)
+        barycenter_diff = abs((other.cx - self.cx) + (other.cy - self.cy))
+        return area_diff + barycenter_diff
+
+
 
         
 
