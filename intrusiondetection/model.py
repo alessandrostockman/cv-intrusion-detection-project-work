@@ -7,8 +7,8 @@ from copy import copy
 class Video:
 
     def __init__(self, params):
-        video_output_streams = ['blobs_contours', 'blobs_filled', 'mask_refined'] #['subtraction', 'mask_raw', 'mask_refined', 'image']
-        video_bg_output_streams = [] #['subtraction', 'mask_raw', 'mask_refined', 'image', 'blind']
+        video_output_streams = ['blobs_contours', 'blobs_filled', 'mask_refined', 'subtraction', 'mask_raw', 'mask_refined']
+        video_bg_output_streams = ['subtraction', 'mask_raw', 'mask_refined', 'image', 'blind']
 
         # outputs = ['mask_raw','mask_refined','bg_image','blob_cont','blob_fill','bg_mask_raw','bg_mask_refined'] TODO
 
@@ -143,44 +143,6 @@ class Frame:
         self.blobs_filled = blob_frame
         self.blobs_contours = cont_frame
 
-    def alt_blob():
-        countours_frame = np.zeros_like(self.parameters.frame)
-        check_diss = len(self.parameters.previous_blobs) > num_labels #TODO Remove
-        #XXX
-        final_blob_frame = np.tile(np.zeros(blob_image.shape, dtype=np.uint8)[:,:,np.newaxis], 3)
-        final_cont_frame = np.tile(np.zeros(blob_image.shape, dtype=np.uint8)[:,:,np.newaxis], 3)
-        for blob in blobs:
-            if blob.is_true_object(60):
-                hue_color = 179 / blob.label
-                color = (int(hue_color), 255, 255)
-            else:
-                hue_color = 90
-                color = (int(hue_color), 128, 128)
-            cv2.drawContours(countours_frame, contour, -1, color, 3)
-            countours_frame = cv2.cvtColor(countours_frame, cv2.COLOR_HSV2BGR)
-            final_cont_frame = final_cont_frame + countours_frame
-
-            # Map component labels to hue val, 0-179 is the hue range in OpenCV
-            label_hue = blob.image * hue_color
-            blank_ch = 255*np.ones_like(label_hue)*blob.image
-            blob_frame = cv2.merge([label_hue, blank_ch, blank_ch])
-
-            # Converting cvt to BGR
-            blob_frame = cv2.cvtColor(blob_frame.astype(np.uint8), cv2.COLOR_HSV2BGR)
-            final_blob_frame = final_blob_frame + blob_frame
-
-        '''
-        final_blob_frame = np.zeros(blob_image.shape, dtype=np.uint8)
-        for blob in blobs:
-            blob.test(self.parameters.frame)
-            blob_frame = blob.image * blob.g
-            final_blob_frame = final_blob_frame + blob_frame.astype(np.uint8)
-        final_blob_frame = np.tile(final_blob_frame[:,:,np.newaxis], 3)
-        '''
-        self.parameters.previous_blobs = blobs
-
-        return countours_frame, final_blob_frame, blobs
-
     def write_text_output(self, csv_writer, frame_index):
         csv_writer.writerow([frame_index, len(self.blobs)])
         for blob in self.blobs:
@@ -217,7 +179,6 @@ class Background:
 
         #TODO Temp
         self.blind = None
-        self.tmp = None
         self.init = self.image.copy()
 
     def __str__(self):
