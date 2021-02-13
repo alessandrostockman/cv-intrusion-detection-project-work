@@ -7,7 +7,7 @@ from copy import copy
 class Video:
 
     def __init__(self, params):
-        video_output_streams = ['blobs_contours', 'blobs_filled'] #['subtraction', 'mask_raw', 'mask_refined', 'image']
+        video_output_streams = ['blobs_contours', 'blobs_filled', 'mask_refined'] #['subtraction', 'mask_raw', 'mask_refined', 'image']
         video_bg_output_streams = [] #['subtraction', 'mask_raw', 'mask_refined', 'image', 'blind']
 
         # outputs = ['mask_raw','mask_refined','bg_image','blob_cont','blob_fill','bg_mask_raw','bg_mask_refined'] TODO
@@ -48,6 +48,9 @@ class Video:
                     x = getattr(fr, key)
                     if x.shape[-1] != 3:
                         x = np.tile(x[:,:,np.newaxis], 3)
+                    if x.dtype != np.uint8:
+                        x = x.astype(np.uint8)
+
                     out.write(x)
 
                 #TODO Migliorare?
@@ -55,7 +58,10 @@ class Video:
                     x = getattr(bg, key)
                     if x.shape[-1] != 3:
                         x = np.tile(x[:,:,np.newaxis], 3)
-                    out.write(np.tile(x[:,:,np.newaxis], 3))
+                    if x.dtype != np.uint8:
+                        x = x.astype(np.uint8)
+
+                    out.write(x)
 
                 fr.write_text_output(csv_writer, frame_index=self.frame_index)
                 self.frame_index += 1
@@ -91,7 +97,7 @@ class Frame:
         self.mask_raw = np.where(self.subtraction > threshold, 255, 0).astype(np.uint8)
 
     def apply_morphology_operators(self, morph_ops):
-        self.mask_refined = morph_ops.apply(self.mask_raw.copy())
+        self.mask_refined = morph_ops.apply(self.mask_raw)
 
     def apply_blob_analysis(self, previous_blobs, similarity_threshold=5000):
         '''Detects the blobs and creates them. Returns the blobs (as dictionaries) and the respective frames with the contour drawn on it
@@ -128,7 +134,7 @@ class Frame:
             color = color_palette[index]
 
             countours_frame = np.zeros((self.image.shape[0], self.image.shape[1], 3), dtype=np.uint8)
-            cv2.drawContours(countours_frame, blob.cnts, -1, color, 3)
+            cv2.drawContours(countours_frame, blob.main_contours, -1, color, 3)
             cont_frame[np.sum(countours_frame, axis=-1) > 0] = color
 
             blob_frame[blob.mask > 0] = color
@@ -211,6 +217,8 @@ class Background:
 
         #TODO Temp
         self.blind = None
+        self.tmp = None
+        self.init = self.image.copy()
 
     def __str__(self):
         return self.name
@@ -228,7 +236,6 @@ class Background:
         mask2 = np.zeros(self.mask_refined.shape, dtype=np.uint8)
         mask1[self.mask_refined == 0] = 1
         mask2[self.mask_refined != 0] = 1
-
 
         self.blind = self.update_blind(frame, alpha)
         new = self.blind * mask1 + self.image * mask2
@@ -286,20 +293,25 @@ class Blob:
     def __init__(self, frame, mask):
         self.label = None
         self.blob_class = BlobClass.PERSON
-        self.cnts = self.parse_contours(mask)[0]
+        self.contours = self.parse_contours(mask)
+        self.main_contours = self.contours[0]
         self.image = frame
         self.mask = mask
 
-        self.area = cv2.contourArea(self.cnts)
-        self.perimeter = cv2.arcLength(self.cnts, True)
-        M = cv2.moments(self.cnts)
+        self.area = cv2.contourArea(self.main_contours)
+        self.perimeter = cv2.arcLength(self.main_contours, True)
+        M = cv2.moments(self.main_contours)
+        self.broken = False
+        if M['m00'] == 0: #TODO Remove
+            self.broken = True
+            M['m00'] = 1
         self.cx = int(M['m10']/M['m00'])
         self.cy = int(M['m01']/M['m00'])
 
-        sum = len(self.cnts)
+        sum = len(self.main_contours)
         val = 0
         x_max, y_max = frame.shape
-        for coord in self.cnts:
+        for coord in self.main_contours:
             y, x = coord[0][0], coord[0][1]
 
             if y <= 0 or y >= y_max - 1 or x <= 0 or x >= x_max - 1:
