@@ -38,7 +38,7 @@ class Video:
                     break
 
                 fr = Frame(frame, bg)
-                bg.image = bg.update_selective(fr, self.params.threshold, self.params.distance, self.params.alpha, self.params.background_morph_ops)
+                bg.image = bg.update_selective(fr, self.params.background_threshold, self.params.background_distance, self.params.alpha, self.params.background_morph_ops)
                 fr.apply_change_detection(self.params.threshold, self.params.distance)
                 fr.apply_morphology_operators(self.params.morph_ops)
                 fr.apply_blob_analysis(blobs)
@@ -139,7 +139,8 @@ class Frame:
         cont_frame = self.image_triple_channel.copy()
         color_palette = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255), (128, 0, 0), (0, 128, 0), (0, 0, 128)]
         for index, blob in enumerate(blobs):
-            color = color_palette[blob.label]
+            #color = color_palette[blob.label]
+            color = color_palette[0]
 
             countours_frame = np.zeros((self.image.shape[0], self.image.shape[1], 3), dtype=np.uint8)
             cv2.drawContours(countours_frame, blob.contours, -1, color, 3)
@@ -275,7 +276,7 @@ class Blob:
         if moments['m00'] == 0: 
             self.broken = True
             moments['m00'] = 1
-
+            
         self.cx = int(moments['m10']/moments['m00'])
         self.cy = int(moments['m01']/moments['m00'])
 
