@@ -44,9 +44,10 @@ class Video:
                 fr.apply_blob_analysis(blobs)
                 blobs = fr.blobs #TODO Meglio
 
+                #TODO Refactor
                 for blob in blobs:
                     font = cv2.FONT_HERSHEY_SIMPLEX
-                    cv2.putText(fr.blobs_filled, str(blob), (blob.cx, blob.cy), font, .2, (255,255,255), 1, cv2.LINE_AA)
+                    cv2.putText(fr.blobs_contours, str(blob), (blob.cx, blob.cy), font, .2, (255,255,255), 1, cv2.LINE_AA)
 
                 for key, out in self.outputs.items():
                     x = getattr(fr, key)
@@ -137,13 +138,15 @@ class Frame:
 
         blob_frame = self.image_triple_channel.copy()
         cont_frame = self.image_triple_channel.copy()
+        #TODO Trovare un modo per fare i colori
         color_palette = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255), (128, 0, 0), (0, 128, 0), (0, 0, 128)]
         for index, blob in enumerate(blobs):
             #color = color_palette[blob.label]
             color = color_palette[0]
 
+            #TODO migliorare e bordi più sottili
             countours_frame = np.zeros((self.image.shape[0], self.image.shape[1], 3), dtype=np.uint8)
-            cv2.drawContours(countours_frame, blob.contours, -1, color, 3)
+            cv2.drawContours(countours_frame, blob.contours, -1, color, 1)
             cont_frame[np.sum(countours_frame, axis=-1) > 0] = color
 
             blob_frame[blob.mask > 0] = color
@@ -269,6 +272,8 @@ class Blob:
         self.main_contours = self.contours[0]
         self.image = frame
         self.mask = mask
+
+        #TODO Controllare se le feature si possono calcolare in modi migliori
 
         self.area = cv2.contourArea(self.main_contours)
         self.perimeter = cv2.arcLength(self.main_contours, True)
