@@ -245,6 +245,9 @@ class MorphOpsSet:
         return self.ops
 
     def apply(self, mask):
+        '''
+            multiple iterations of closing or opening means that we apply n°iterations-times of Dilate + n°iterations-times of Erosion or vice-versa
+        '''
         for op in self.get():
             mask = cv2.morphologyEx(mask, op.operation_type, op.kernel, iterations=op.iterations)
         return mask
