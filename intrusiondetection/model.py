@@ -44,6 +44,10 @@ class Video:
                 fr.apply_blob_analysis(blobs)
                 blobs = fr.blobs #TODO Meglio
 
+                for blob in blobs:
+                    font = cv2.FONT_HERSHEY_SIMPLEX
+                    cv2.putText(fr.blobs_filled, str(blob), (blob.cx, blob.cy), font, .2, (255,255,255), 1, cv2.LINE_AA)
+
                 for key, out in self.outputs.items():
                     x = getattr(fr, key)
                     if x.shape[-1] != 3:
@@ -112,29 +116,33 @@ class Frame:
         
         new_labels = 0
         blobs = []
+
+        candidate_blobs = copy(previous_blobs)
         for curr_label in range(1, num_labels):
             blob_mask = np.where(labels == curr_label, 255, 0).astype(np.uint8)
             
             blob = Blob(self.image, blob_mask)
-            matched_label = blob.search_matching_blob(previous_blobs, similarity_threshold)
 
-            if matched_label is None:
-                prev_labels_number = max([x.label for x in previous_blobs], default=0)
-                new_labels += 1
-                matched_label = new_labels + prev_labels_number
-                print("New object found:", matched_label, "Prev Label:", prev_labels_number, "New:", new_labels)
-                
-            blob.label = matched_label
-            blobs.append(blob)
+            if blob.is_valid:
+                matched_label = blob.search_matching_blob(candidate_blobs, similarity_threshold)
+
+                if matched_label is None:
+                    prev_labels_number = max([x.label for x in previous_blobs], default=0)
+                    new_labels += 1
+                    matched_label = new_labels + prev_labels_number
+                    print("New object found:", matched_label, "Prev Label:", prev_labels_number, "New:", new_labels)
+                    
+                blob.label = matched_label
+                blobs.append(blob)
 
         blob_frame = self.image_triple_channel.copy()
         cont_frame = self.image_triple_channel.copy()
-        color_palette = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255), (128, 0, 0)]
+        color_palette = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255), (128, 0, 0), (0, 128, 0), (0, 0, 128)]
         for index, blob in enumerate(blobs):
-            color = color_palette[index]
+            color = color_palette[blob.label]
 
             countours_frame = np.zeros((self.image.shape[0], self.image.shape[1], 3), dtype=np.uint8)
-            cv2.drawContours(countours_frame, blob.main_contours, -1, color, 3)
+            cv2.drawContours(countours_frame, blob.contours, -1, color, 3)
             cont_frame[np.sum(countours_frame, axis=-1) > 0] = color
 
             blob_frame[blob.mask > 0] = color
@@ -253,7 +261,6 @@ class Blob:
 
     def __init__(self, frame, mask):
         self.label = None
-        self.blob_class = BlobClass.PERSON
         self.contours = self.parse_contours(mask)
         self.main_contours = self.contours[0]
         self.image = frame
@@ -261,13 +268,16 @@ class Blob:
 
         self.area = cv2.contourArea(self.main_contours)
         self.perimeter = cv2.arcLength(self.main_contours, True)
-        M = cv2.moments(self.main_contours)
+        moments = cv2.moments(self.main_contours)
+        
+        #TODO Remove
         self.broken = False
-        if M['m00'] == 0: #TODO Remove
+        if moments['m00'] == 0: 
             self.broken = True
-            M['m00'] = 1
-        self.cx = int(M['m10']/M['m00'])
-        self.cy = int(M['m01']/M['m00'])
+            moments['m00'] = 1
+
+        self.cx = int(moments['m10']/moments['m00'])
+        self.cy = int(moments['m01']/moments['m00'])
 
         sum = len(self.main_contours)
         val = 0
@@ -284,9 +294,18 @@ class Blob:
 
             val += max(abs(dx), abs(dy))
         self.edge_strength = val / sum
+        
+        self.is_valid = self.area > 500
+        self.is_present = self.edge_strength > 60
+        self.blob_class = BlobClass.PERSON if self.area > 1000 else BlobClass.OBJECT
 
-    def is_true_object(self, threshold):
-        return self.edge_strength > threshold
+    def __str__(self):
+        name = ""
+        if self.is_present:
+            name = str(self.blob_class)
+        else:
+            name = "FAKE"
+        return str(self.label) + " " + str(self.area) + " " + name
 
     def i4x(self, frame, i, j):
         return 1/4 * frame[i, j-1] + 2 * frame[i, j] + frame[i, j+1]
@@ -306,14 +325,13 @@ class Blob:
 
         return contours
 
-    def search_matching_blob(self, previous_blobs, threshold):
-        previous_blobs = copy(previous_blobs)
+    def search_matching_blob(self, candidate_blobs, threshold):
         label = None
-        if len(previous_blobs) > 0:
+        if len(candidate_blobs) > 0:
             best_blob = None
             best_dissimilarity = 1000000
             best_index = -1
-            for index, candidate_blob in enumerate(previous_blobs):
+            for index, candidate_blob in enumerate(candidate_blobs):
                 dissimilarity = self.dissimilarity(candidate_blob)
                 if dissimilarity < threshold and dissimilarity < best_dissimilarity:
                     best_blob = candidate_blob
@@ -322,7 +340,7 @@ class Blob:
 
             if best_blob is not None:
                 label = best_blob.label
-                previous_blobs.pop(best_index)
+                candidate_blobs.pop(best_index)
         return label
 
     def dissimilarity(self, other):
@@ -330,10 +348,9 @@ class Blob:
         barycenter_diff = abs((other.cx - self.cx) + (other.cy - self.cy))
         return area_diff + barycenter_diff
 
-
-
-        
-
 class BlobClass(Enum):
     PERSON = 1
     OBJECT = 2
+
+    def __str__(self):
+        return self.name
