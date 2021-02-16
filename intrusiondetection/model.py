@@ -7,21 +7,24 @@ from copy import copy
 class Video:
 
     def __init__(self, params):
-        video_output_streams = ['blobs_contours', 'blobs_filled', 'mask_refined', 'subtraction', 'mask_raw', 'mask_refined']
-        video_bg_output_streams = ['subtraction', 'mask_raw', 'mask_refined', 'image', 'blind']
+        output_streams = {
+            'foreground': ['blobs_contours', 'blobs_filled', 'mask_refined', 'subtraction', 'mask_raw', 'mask_refined'],
+            'background': ['subtraction', 'mask_raw', 'mask_refined', 'image', 'blind']
+        }
 
         # outputs = ['mask_raw','mask_refined','bg_image','blob_cont','blob_fill','bg_mask_raw','bg_mask_refined'] TODO
 
         self.frame_index = 0
+        self.frames = []
         self.params = params
         self.cap = cv2.VideoCapture(self.params.input_video)
 
-        w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = self.cap.get(cv2.CAP_PROP_FPS)
-        self.outputs = {key: self.create_output_stream(w, h, fps, str(self.params) + "_"+key+".avi") for key in video_output_streams}
-        self.bg_outputs = {key: self.create_output_stream(w, h, fps, str(self.params) + "_bg_"+key+".avi") for key in video_bg_output_streams}
-        
+        self.w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self.h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        self.fps = self.cap.get(cv2.CAP_PROP_FPS)
+        self.outputs = {output_type: {
+            key: self.create_output_stream(self.w, self.h, self.fps, str(self.params) + "_" + output_type + "_" + key + ".avi") for key in outputs
+        } for output_type, outputs in output_streams.items()}
 
     def intrusion_detection(self):
         try:
@@ -49,24 +52,15 @@ class Video:
                     font = cv2.FONT_HERSHEY_SIMPLEX
                     cv2.putText(fr.blobs_contours, str(blob), (blob.cx, blob.cy), font, .2, (255,255,255), 1, cv2.LINE_AA)
 
-                for key, out in self.outputs.items():
-                    x = getattr(fr, key)
-                    if x.shape[-1] != 3:
-                        x = np.tile(x[:,:,np.newaxis], 3)
-                    if x.dtype != np.uint8:
-                        x = x.astype(np.uint8)
-
-                    out.write(x)
-
-                #TODO Migliorare?
-                for key, out in self.bg_outputs.items():
-                    x = getattr(bg, key)
-                    if x.shape[-1] != 3:
-                        x = np.tile(x[:,:,np.newaxis], 3)
-                    if x.dtype != np.uint8:
-                        x = x.astype(np.uint8)
-
-                    out.write(x)
+                for output_type, outputs in self.outputs.items():
+                    obj = fr if output_type == 'foreground' else bg
+                    for key, out in outputs.items():
+                        x = getattr(obj, key)
+                        if x.shape[-1] != 3:
+                            x = np.tile(x[:,:,np.newaxis], 3)
+                        if x.dtype != np.uint8:
+                            x = x.astype(np.uint8)                        
+                        out.write(x)
 
                 fr.write_text_output(csv_writer, frame_index=self.frame_index)
                 self.frame_index += 1
