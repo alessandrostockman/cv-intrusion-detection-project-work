@@ -1,6 +1,7 @@
 import csv
 import numpy as np
 import cv2
+from matplotlib import pyplot as plt
 from enum import Enum
 from copy import copy
 
@@ -8,18 +9,10 @@ class Video:
     '''
     Class Video defining the video that will be written in output
     '''
-    def __init__(self, params):
-        output_streams = {
-            'foreground': ['blobs_contours', 'blobs_filled', 'mask_refined', 'subtraction', 'mask_raw', 'mask_refined'],
-            'background': ['subtraction', 'mask_raw', 'mask_refined', 'image', 'blind']
-        }
-
-        # outputs = ['mask_raw','mask_refined','bg_image','blob_cont','blob_fill','bg_mask_raw','bg_mask_refined'] TODO
-
+    def __init__(self, input_video_path):
         self.frame_index = 0
         self.frames = []
-        self.params = params
-        self.cap = cv2.VideoCapture(self.params.input_video)
+        self.cap = cv2.VideoCapture(input_video_path)
 
         #Width
         self.w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -27,22 +20,18 @@ class Video:
         self.h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         #fps
         self.fps = self.cap.get(cv2.CAP_PROP_FPS)
-        #creating the names
-        self.outputs = {output_type: {
-            key: self.create_output_stream(self.w, self.h, self.fps, str(self.params) + "_" + output_type + "_" + key + ".avi") for key in outputs
-        } for output_type, outputs in output_streams.items()}
 
         self.load_video()
         
     def load_video(self):
         while self.cap.isOpened():
-            ret, frame = self.cap.read()
-            if not ret or frame is None:
+            ret, frame_image = self.cap.read()
+            if not ret or frame_image is None:
                 break
 
-            self.frames.append(Frame(frame, self.params.background))
+            self.frames.append(Frame(frame_image))
 
-    def intrusion_detection(self, params):
+    def intrusion_detection(self, params, initial_background):
         '''
         Method that computes the change detection:
         Compuetes the background via selective update;
@@ -52,16 +41,28 @@ class Video:
         For every blob we write the classification of the blob. 
         Modifies the output to write them on the output stream.
         '''
+
+        output_streams = {
+            'foreground': ['blobs_contours', 'blobs_filled', 'mask_refined', 'subtraction', 'mask_raw', 'mask_refined'],
+            'background': ['subtraction', 'mask_raw', 'mask_refined', 'image', 'blind']
+        }
+
+        # outputs = ['mask_raw','mask_refined','bg_image','blob_cont','blob_fill','bg_mask_raw','bg_mask_refined'] TODO
+        #creating the output streams
+        self.outputs = {output_type: {
+            key: self.create_output_stream(self.w, self.h, self.fps, str(params) + "_" + output_type + "_" + key + ".avi") for key in outputs
+        } for output_type, outputs in output_streams.items()}
+
         try:
             csv_file = open(params.output_text, mode='w')
             csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
 
-            bg = params.background
+            bg = initial_background
             blobs = []
 
             for fr in self.frames:
                 bg.image = bg.update_selective(fr, params.background_threshold, params.background_distance, params.alpha, params.background_morph_ops)
-                fr.apply_change_detection(params.threshold, params.distance)
+                fr.apply_change_detection(bg, params.threshold, params.distance)
                 fr.apply_morphology_operators(params.morph_ops)
                 fr.apply_blob_analysis(blobs)
                 blobs = fr.blobs #TODO Meglio
@@ -101,10 +102,9 @@ class Frame:
         Class Frame containing the methods that needs to be applied on the image frame
 
     '''
-    def __init__(self, image, background):
+    def __init__(self, image):
         self.image = image[:,:,0]
         self.image_triple_channel = image
-        self.background = background
         self.subtraction = None
         self.mask_raw = None
         self.mask_refined = None
@@ -113,11 +113,11 @@ class Frame:
 
         self.blobs = []
     
-    def apply_change_detection(self, threshold, distance):
+    def apply_change_detection(self, background, threshold, distance):
         '''
             Computes the difference between the frame and the background (computed via Selective update) and computes a binary mask of type np.uint8 
         '''
-        self.subtraction = self.background.subtract_frame(self.image, distance).astype(np.uint8)
+        self.subtraction = background.subtract_frame(self.image, distance).astype(np.uint8)
         self.mask_raw = np.where(self.subtraction > threshold, 255, 0).astype(np.uint8)
 
     def apply_morphology_operators(self, morph_ops):
@@ -187,11 +187,16 @@ class Frame:
         for blob in self.blobs:
             csv_writer.writerow(blob.attributes())
 
+    def show(self, key):
+        img = getattr(self, key)
+        plt.imshow(img, cmap='gray', vmin=0, vmax=255)
+        plt.show()
+
 class Background:
     '''
         Class background providing operations to obtain the background
     '''
-    def __init__(self, input_video_path, interpolation, frames_n=100):
+    def __init__(self, input_video_path, interpolation, frames_n):
         '''
             Estimates the background of the given video capture by using the interpolation function and n frames
             Returning a matrix of float64
@@ -254,6 +259,11 @@ class Background:
             Computes the Background subtraction (distance(frame,background)) and returns a matrix of boolean
         '''
         return distance(frame, self.image)
+
+    def show(self, key):
+        img = getattr(self, key)
+        plt.imshow(img, cmap='gray', vmin=0, vmax=255)
+        plt.show()
 
 class MorphOp:
     '''
