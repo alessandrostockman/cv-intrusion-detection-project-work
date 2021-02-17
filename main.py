@@ -27,4 +27,5 @@ param_bag = ParameterList({
 
 for params in param_bag:
     video = Video("rilevamento-intrusioni-video.avi")
-    video.intrusion_detection(params, params.background)
+    backgrounds = video.process_backgrounds('selective', params.background, params.alpha, params.background_threshold, params.background_distance, params.background_morph_ops)
+    video.intrusion_detection(params, backgrounds)

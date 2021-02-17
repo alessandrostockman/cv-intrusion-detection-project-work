@@ -29,7 +29,7 @@ class ParameterList:
         '''
         bs = []
         for params in (dict(zip(background, x)) for x in itertools.product(*background.values())):
-            bs.append(Background(input_video_path, params["interpolation"], params["frames"]))
+            bs.append(Background(input_video_path=input_video_path, interpolation=params["interpolation"], frames_n=params["frames"]))
         return bs
 
 class ParameterSet:

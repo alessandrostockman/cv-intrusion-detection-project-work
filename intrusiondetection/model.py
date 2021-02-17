@@ -12,6 +12,7 @@ class Video:
     def __init__(self, input_video_path):
         self.frame_index = 0
         self.frames = []
+        self.backgrounds = []
         self.cap = cv2.VideoCapture(input_video_path)
 
         #Width
@@ -31,7 +32,20 @@ class Video:
 
             self.frames.append(Frame(frame_image))
 
-    def intrusion_detection(self, params, initial_background):
+    def process_backgrounds(self, update_mode, initial_background, alpha, threshold=None, distance=None, morph_ops=None):
+        bg = initial_background
+        backgrounds = [bg]
+        for fr in self.frames:
+            if update_mode == 'selective':
+                bg_image = bg.update_selective(fr, threshold, distance, alpha, morph_ops)
+            else:
+                bg_image = bg.update_blind(fr, alpha)
+
+            bg = Background(image=bg_image)
+            backgrounds.append(bg)
+        return backgrounds
+
+    def intrusion_detection(self, params, backgrounds):
         '''
         Method that computes the change detection:
         Compuetes the background via selective update;
@@ -56,15 +70,11 @@ class Video:
         try:
             csv_file = open(params.output_text, mode='w')
             csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-
-            bg = initial_background
             blobs = []
 
             for fr in self.frames:
-                bg.image = bg.update_selective(fr, params.background_threshold, params.background_distance, params.alpha, params.background_morph_ops)
-                fr.apply_change_detection(bg, params.threshold, params.distance)
-                fr.apply_morphology_operators(params.morph_ops)
-                fr.apply_blob_analysis(blobs)
+                bg = backgrounds[self.frame_index]
+                fr.intrusion_detection(params, bg, blobs)
                 blobs = fr.blobs #TODO Meglio
 
                 #TODO Refactor
@@ -112,6 +122,11 @@ class Frame:
         self.blobs_filled = None
 
         self.blobs = []
+
+    def intrusion_detection(self, bg, params, previous_blobs):
+        self.apply_change_detection(bg, params.threshold, params.distance)
+        self.apply_morphology_operators(params.morph_ops)
+        self.apply_blob_analysis(previous_blobs)
     
     def apply_change_detection(self, background, threshold, distance):
         '''
@@ -158,7 +173,6 @@ class Frame:
                     prev_labels_number = max([x.label for x in previous_blobs], default=0)
                     new_labels += 1
                     matched_label = new_labels + prev_labels_number
-                    print("New object found:", matched_label, "Prev Label:", prev_labels_number, "New:", new_labels)
                     
                 blob.label = matched_label
                 blobs.append(blob)
@@ -187,45 +201,66 @@ class Frame:
         for blob in self.blobs:
             csv_writer.writerow(blob.attributes())
 
-    def show(self, key):
-        img = getattr(self, key)
-        plt.imshow(img, cmap='gray', vmin=0, vmax=255)
-        plt.show()
+    def show(self, keys, show=True):
+        if isinstance(keys, list):
+            plt.figure(figsize=(20, 10))
+            for index, key in enumerate(keys):
+                img = getattr(self, key)
+                plt.subplot(1, len(keys), index+1)
+                plt.axis('off')
+                plt.imshow(img, cmap='gray', vmin=0, vmax=255)
+        else:
+            plt.figure(figsize=(6.4, 4.8))
+            img = getattr(self, keys)
+            plt.axis('off')
+            plt.imshow(img, cmap='gray', vmin=0, vmax=255)
+        if show:
+            plt.show()
 
 class Background:
     '''
         Class background providing operations to obtain the background
     '''
-    def __init__(self, input_video_path, interpolation, frames_n):
+    def __init__(self, input_video_path=None, interpolation=None, frames_n=None, image=None):
         '''
             Estimates the background of the given video capture by using the interpolation function and n frames
             Returning a matrix of float64
         '''
-        # Loading Video
-        cap = cv2.VideoCapture(input_video_path)
-        bg = []
-        idx = 0
-        # Initialize the background image
-        while(cap.isOpened() and idx < frames_n):
-            ret, frame = cap.read()
-            if ret and not frame is None:
-                # frame = frame.astype(float)
-                # Getting all first n images
-                bg.append(frame[:,:,0])
-                idx += 1
-            else:
-                break
-        cap.release()
-
-        self.image = interpolation(np.stack(bg, axis=0), axis=0).astype(np.uint8)
         self.subtraction = None
         self.mask_raw = None
         self.mask_refined = None
-        self.name = "{}_{}".format(frames_n, interpolation.__name__)
-
-        #TODO Temp
         self.blind = None
-        self.init = self.image.copy()
+
+        if input_video_path is not None:
+            # Loading Video
+            cap = cv2.VideoCapture(input_video_path)
+            bg = []
+            idx = 0
+            # Initialize the background image
+            while(cap.isOpened() and idx < frames_n):
+                ret, frame = cap.read()
+                if ret and not frame is None:
+                    # frame = frame.astype(float)
+                    # Getting all first n images
+                    bg.append(frame[:,:,0])
+                    idx += 1
+                else:
+                    break
+            cap.release()
+
+            self.image = interpolation(np.stack(bg, axis=0), axis=0).astype(np.uint8)
+            self.subtraction = None
+            self.mask_raw = None
+            self.mask_refined = None
+            self.name = "{}_{}".format(frames_n, interpolation.__name__)
+
+            #TODO Temp
+            self.init = self.image.copy()
+        elif image is not None:
+            self.image = image
+        else:
+            #TODO Throw missing argument exception 
+            pass
 
     def __str__(self):
         return self.name
@@ -260,10 +295,25 @@ class Background:
         '''
         return distance(frame, self.image)
 
-    def show(self, key):
-        img = getattr(self, key)
-        plt.imshow(img, cmap='gray', vmin=0, vmax=255)
-        plt.show()
+    def show(self, keys, show=True):
+        if isinstance(keys, list):
+            if show:
+                plt.figure(figsize=(20, 10))
+
+            for index, key in enumerate(keys):
+                img = getattr(self, key)
+                plt.subplot(1, len(keys), index+1)
+                plt.axis('off')
+                plt.imshow(img, cmap='gray', vmin=0, vmax=255)
+        else:
+            if show:
+                plt.figure(figsize=(6.4, 4.8))
+
+            img = getattr(self, keys)
+            plt.axis('off')
+            plt.imshow(img, cmap='gray', vmin=0, vmax=255)
+        if show:
+            plt.show()
 
 class MorphOp:
     '''
