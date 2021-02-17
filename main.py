@@ -27,4 +27,4 @@ param_bag = ParameterList({
 
 for params in param_bag:
     video = Video(params)
-    video.intrusion_detection()
+    video.intrusion_detection(params)
