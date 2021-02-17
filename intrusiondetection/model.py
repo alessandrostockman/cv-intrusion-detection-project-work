@@ -26,7 +26,54 @@ class Video:
             key: self.create_output_stream(self.w, self.h, self.fps, str(self.params) + "_" + output_type + "_" + key + ".avi") for key in outputs
         } for output_type, outputs in output_streams.items()}
 
-    def intrusion_detection(self):
+        self.load_video()
+        
+    def load_video(self):
+        while self.cap.isOpened():
+            ret, frame = self.cap.read()
+            if not ret or frame is None:
+                break
+
+            self.frames.append(Frame(frame, self.params.background))
+            self.frame_index += 1
+
+    def intrusion_detection(self, params):
+        try:
+            csv_file = open(params.output_text, mode='w')
+            csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+
+            bg = params.background
+            blobs = []
+
+            for frame in self.frames:
+                fr = Frame(frame, bg)
+                bg.image = bg.update_selective(fr, params.background_threshold, params.background_distance, params.alpha, params.background_morph_ops)
+                fr.apply_change_detection(params.threshold, params.distance)
+                fr.apply_morphology_operators(params.morph_ops)
+                fr.apply_blob_analysis(blobs)
+                blobs = fr.blobs #TODO Meglio
+
+                #TODO Refactor
+                for blob in blobs:
+                    font = cv2.FONT_HERSHEY_SIMPLEX
+                    cv2.putText(fr.blobs_contours, str(blob), (blob.cx, blob.cy), font, .2, (255,255,255), 1, cv2.LINE_AA)
+
+                for output_type, outputs in self.outputs.items():
+                    obj = fr if output_type == 'foreground' else bg
+                    for key, out in outputs.items():
+                        x = getattr(obj, key)
+                        if x.shape[-1] != 3:
+                            x = np.tile(x[:,:,np.newaxis], 3)
+                        if x.dtype != np.uint8:
+                            x = x.astype(np.uint8)                        
+                        out.write(x)
+
+                fr.write_text_output(csv_writer, frame_index=self.frame_index)
+                self.frame_index += 1
+        finally:
+            csv_file.close()
+
+    def intrusion_detection2(self):
         try:
             csv_file = open(self.params.output_text, mode='w')
             csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)

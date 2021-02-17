@@ -16,3 +16,4 @@ def distance_euclidean(img1, img2):
     img1 = np.tile(img1.astype(float)[:,:,np.newaxis], 3)
     img2 = np.tile(img2.astype(float)[:,:,np.newaxis], 3)
     return np.sqrt(np.sum((img2 - img1) ** 2, axis=-1))
+
