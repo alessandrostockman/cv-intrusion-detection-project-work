@@ -70,17 +70,15 @@ class Video:
         try:
             csv_file = open(params.output_text, mode='w')
             csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            blobs = []
+            prev_fr = None
 
             for fr in self.frames:
+                prev_blobs = []
                 bg = backgrounds[self.frame_index]
-                fr.intrusion_detection(params, bg, blobs)
-                blobs = fr.blobs #TODO Meglio
+                if prev_fr is not None:
+                    prev_blobs = prev_fr.blobs
 
-                #TODO Refactor
-                for blob in blobs:
-                    font = cv2.FONT_HERSHEY_SIMPLEX
-                    cv2.putText(fr.blobs_contours, str(blob), (blob.cx, blob.cy), font, .2, (255,255,255), 1, cv2.LINE_AA)
+                fr.intrusion_detection(params, bg, prev_blobs)
 
                 for output_type, outputs in self.outputs.items():
                     obj = fr if output_type == 'foreground' else bg
@@ -94,6 +92,7 @@ class Video:
 
                 fr.write_text_output(csv_writer, frame_index=self.frame_index)
                 self.frame_index += 1
+                prev_fr = fr
         finally:
             csv_file.close()
     
@@ -107,7 +106,49 @@ class Video:
 
         return out
 
-class Frame:
+from copy import copy
+
+class Displayable:
+
+    def display_row(self, image_dicts):
+        plt.figure(figsize=(20, 10))
+
+        for index, image_dict in enumerate(image_dicts):
+            plt.subplot(1, len(image_dicts), index+1)
+            img = getattr(self, image_dict['key'])
+            plt.axis('off')
+            if image_dict['title'] is not None:
+                plt.title(image_dict['title'])
+            plt.imshow(img, cmap='gray', vmin=0, vmax=255)
+
+
+    def display(self, keys, title=None, show=True):
+        '''if isinstance(keys, list):
+            if show:
+                plt.figure(figsize=(20, 10))
+
+            for index, key in enumerate(keys):
+                plt.subplot(1, len(keys), index+1)
+                img = getattr(self, key)
+                plt.axis('off')
+                plt.imshow(img, cmap='gray', vmin=0, vmax=255)
+        else:'''
+        if show:
+            plt.figure(figsize=(6.4, 4.8))
+
+        img = getattr(self, keys)
+        plt.axis('off')
+        if title is not None:
+            plt.title(title)
+        plt.imshow(img, cmap='gray', vmin=0, vmax=255)
+        if show:
+            plt.show()
+
+    def copy(self):
+        return copy(self)
+
+
+class Frame(Displayable):
     '''
         Class Frame containing the methods that needs to be applied on the image frame
 
@@ -118,15 +159,21 @@ class Frame:
         self.subtraction = None
         self.mask_raw = None
         self.mask_refined = None
-        self.blobs_contours = None
-        self.blobs_filled = None
+        self.blobs_contours = self.image_triple_channel
+        self.blobs_filled = self.image_triple_channel
 
         self.blobs = []
 
-    def intrusion_detection(self, bg, params, previous_blobs):
+    def intrusion_detection(self, params, bg, previous_blobs):
         self.apply_change_detection(bg, params.threshold, params.distance)
         self.apply_morphology_operators(params.morph_ops)
-        self.apply_blob_analysis(previous_blobs)
+        self.apply_blob_analysis(previous_blobs, 5000) #TODO Threshold
+
+        #TODO Refactor
+        print(self.blobs_contours.shape, self.blobs_contours.dtype)
+        for blob in previous_blobs:
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            cv2.putText(self.blobs_contours, str(blob), (blob.cx, blob.cy), font, .2, (255,255,255), 1, cv2.LINE_AA)
     
     def apply_change_detection(self, background, threshold, distance):
         '''
@@ -141,7 +188,7 @@ class Frame:
         '''
         self.mask_refined = morph_ops.apply(self.mask_raw)
 
-    def apply_blob_analysis(self, previous_blobs, similarity_threshold=5000):
+    def apply_blob_analysis(self, previous_blobs, similarity_threshold):
         '''
             Detects the blobs and creates them. Returns the blobs (as dictionaries) and the respective frames with the contour drawn on it
         ''' 
@@ -151,7 +198,11 @@ class Frame:
         if num_labels <= 1:
             self.blobs = []
             self.blobs_filled = self.image
-            self.blobs_contours = self.image
+            self.blobs_labeled = self.image
+            self.blobs_remapped = self.image
+            self.blobs_classified = self.image
+            self.blobs_refined = self.image
+            #self.blobs_contours = self.image
             return
         
         new_labels = 0
@@ -162,7 +213,7 @@ class Frame:
         for curr_label in range(1, num_labels):
             blob_mask = np.where(labels == curr_label, 255, 0).astype(np.uint8)
             
-            blob = Blob(self.image, blob_mask)
+            blob = Blob(self.image, blob_mask, 100, 2000)
             
             #blob is not created due to noise
             if blob.is_valid:
@@ -183,44 +234,65 @@ class Frame:
         color_palette = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255), (128, 0, 0), (0, 128, 0), (0, 0, 128)]
         for index, blob in enumerate(blobs):
             #color = color_palette[blob.label]
-            color = color_palette[0]
+            color = color_palette[0] #TODO Color based on classification
 
-            #TODO migliorare e bordi più sottili
-            countours_frame = np.zeros((self.image.shape[0], self.image.shape[1], 3), dtype=np.uint8)
-            cv2.drawContours(countours_frame, blob.contours, -1, color, 1)
-            cont_frame[np.sum(countours_frame, axis=-1) > 0] = color
-
+            cv2.drawContours(cont_frame, blob.contours, -1, color, 1)
             blob_frame[blob.mask > 0] = color
 
         self.blobs = blobs
         self.blobs_filled = blob_frame
+        self.blobs_labeled = blob_frame
+        self.blobs_remapped = blob_frame
+        self.blobs_classified = blob_frame
+        self.blobs_refined = blob_frame
         self.blobs_contours = cont_frame
+
+    def apply_blob_labeling(self, colored_output=False):
+        labels_num, self.blob_labeled = cv2.connectedComponents(self.mask_refined)
+
+        self.x = labels * color
+
+    def apply_blob_linkage(self, labels_num, dissimilarity_threshold):
+        new_labels = 0
+        blobs = []
+        blobs = []
+        for curr_label in range(1, labels_num):
+            blob_mask = np.where(labels == curr_label, 255, 0).astype(np.uint8)
+            blob = Blob(self.image, blob_mask, 100, 2000) #TODO Spostare i threhsold
+            
+            #blob is not created due to noise
+            if blob.is_valid:
+                matched_label = blob.search_matching_blob(candidate_blobs, similarity_threshold)
+
+                #if we canno't match the blob to a previous blob then it means that we need to associate a new label on the detected blob
+                if matched_label is None:
+                    prev_labels_number = max([x.label for x in previous_blobs], default=0)
+                    new_labels += 1
+                    matched_label = new_labels + prev_labels_number
+                    
+                blob.label = matched_label
+                blobs.append(blob)
+        self.blobs = blobs
+
+    def apply_classification(self, classification_threshold):
+        pass
+
+    def apply_object_recognition(self, edge_threshold):
+        pass
 
     def write_text_output(self, csv_writer, frame_index):
         csv_writer.writerow([frame_index, len(self.blobs)])
         for blob in self.blobs:
             csv_writer.writerow(blob.attributes())
 
-    def show(self, keys, show=True):
-        if isinstance(keys, list):
-            plt.figure(figsize=(20, 10))
-            for index, key in enumerate(keys):
-                img = getattr(self, key)
-                plt.subplot(1, len(keys), index+1)
-                plt.axis('off')
-                plt.imshow(img, cmap='gray', vmin=0, vmax=255)
-        else:
-            plt.figure(figsize=(6.4, 4.8))
-            img = getattr(self, keys)
-            plt.axis('off')
-            plt.imshow(img, cmap='gray', vmin=0, vmax=255)
-        if show:
-            plt.show()
-
-class Background:
+class Background(Displayable):
     '''
         Class background providing operations to obtain the background
     '''
+
+
+    
+
     def __init__(self, input_video_path=None, interpolation=None, frames_n=None, image=None):
         '''
             Estimates the background of the given video capture by using the interpolation function and n frames
@@ -253,14 +325,10 @@ class Background:
             self.mask_raw = None
             self.mask_refined = None
             self.name = "{}_{}".format(frames_n, interpolation.__name__)
-
-            #TODO Temp
-            self.init = self.image.copy()
         elif image is not None:
             self.image = image
         else:
-            #TODO Throw missing argument exception 
-            pass
+            raise ValueError("Either an input_video_path or an image have to be specified")
 
     def __str__(self):
         return self.name
@@ -294,26 +362,6 @@ class Background:
             Computes the Background subtraction (distance(frame,background)) and returns a matrix of boolean
         '''
         return distance(frame, self.image)
-
-    def show(self, keys, show=True):
-        if isinstance(keys, list):
-            if show:
-                plt.figure(figsize=(20, 10))
-
-            for index, key in enumerate(keys):
-                img = getattr(self, key)
-                plt.subplot(1, len(keys), index+1)
-                plt.axis('off')
-                plt.imshow(img, cmap='gray', vmin=0, vmax=255)
-        else:
-            if show:
-                plt.figure(figsize=(6.4, 4.8))
-
-            img = getattr(self, keys)
-            plt.axis('off')
-            plt.imshow(img, cmap='gray', vmin=0, vmax=255)
-        if show:
-            plt.show()
 
 class MorphOp:
     '''
@@ -357,12 +405,16 @@ class MorphOpsSet:
             multiple iterations of closing or opening means that we apply n°iterations-times of Dilate + n°iterations-times of Erosion or vice-versa
         '''
         for op in self.get():
+            kernel_x, kernel_y = op.kernel.shape
+            mask=cv2.copyMakeBorder(mask, kernel_y, kernel_y, kernel_x, kernel_x,
+                borderType=cv2.BORDER_CONSTANT, value=0)
             mask = cv2.morphologyEx(mask, op.operation_type, op.kernel, iterations=op.iterations)
+            mask = mask[kernel_y:-kernel_y, kernel_x:-kernel_x]
         return mask
 
 class Blob:
 
-    def __init__(self, frame, mask):
+    def __init__(self, frame, mask, edge_threshold, classification_threshold):
         self.label = None
         self.contours = self.parse_contours(mask)
         self.main_contours = self.contours[0]
@@ -375,42 +427,17 @@ class Blob:
         self.perimeter = cv2.arcLength(self.main_contours, True)
         moments = cv2.moments(self.main_contours)
         
-        #TODO Remove
-        self.broken = False
-        if moments['m00'] == 0: 
-            self.broken = True
-            moments['m00'] = 1
-        
         #Obtaining the barycentre of the blob
         self.cx = int(moments['m10']/moments['m00'])
         self.cy = int(moments['m01']/moments['m00'])
-
-        sum = len(self.main_contours)
-
-        #Calculating the derivatives to obtain the gradient value to verify if the object is a true object or a fake one
-        val = 0
-        x_max, y_max = frame.shape
-        for coord in self.main_contours:
-            y, x = coord[0][0], coord[0][1]
-
-            if y <= 0 or y >= y_max - 1 or x <= 0 or x >= x_max - 1:
-                dx = 0
-                dy = 0
-            else:
-                dx = self.i4y(frame, x, y+1) - self.i4y(frame, x, y-1)
-                dy = self.i4x(frame, x+1, y) - self.i4x(frame, x-1, y)
-
-            val += max(abs(dx), abs(dy))
-        self.edge_strength = val / sum
         
+        self.edge_strength = self.edge_score(frame)
         #not considering blob which area is below 500 pixel cause they are due to noise 
-        #TODO Maybe create a list of thresholds
-        self.is_valid = self.area > 500
+        self.is_valid = True#self.area > 500
         #detecting true blob from fake one in base of the gradient of the value of the edge
-        self.is_present = self.edge_strength > 60
+        self.is_present = self.edge_strength > edge_threshold
         #Distinguish wether a blob is a person or an object in base of the are of his blob 
-        #TODO crare una lista che contiene i vari threshold ?
-        self.blob_class = BlobClass.PERSON if self.area > 1000 else BlobClass.OBJECT
+        self.blob_class = BlobClass.PERSON if self.classification_score() > classification_threshold else BlobClass.OBJECT
 
     def __str__(self):
         name = ""
@@ -418,20 +445,7 @@ class Blob:
             name = str(self.blob_class)
         else:
             name = "FAKE"
-        return str(self.label) + " " + str(self.area) + " " + name
-
-    #TODO dobbiamo toglierlo sto 1/4 o no ?
-    def i4x(self, frame, i, j):
-        '''
-            Smooth derivative along x
-        '''
-        return 1/4 * frame[i, j-1] + 2 * frame[i, j] + frame[i, j+1]
-
-    def i4y(self, frame, i, j):
-        '''
-            Smooth derivative along y
-        '''
-        return 1/4 * frame[i-1, j] + 2 * frame[i, j] + frame[i+1, j]
+        return str(self.classification_score()) + " " + name
 
     def attributes(self):
         return [self.label, self.area, self.perimeter, self.blob_class]
@@ -445,7 +459,7 @@ class Blob:
 
         return contours
 
-    def search_matching_blob(self, candidate_blobs, threshold):
+    def search_matching_blob(self, candidate_blobs, dissimilarity_threshold):
         '''
             Detcting matching blobs using the dissimilarity method shown below
         '''
@@ -455,8 +469,8 @@ class Blob:
             best_dissimilarity = 1000000
             best_index = -1
             for index, candidate_blob in enumerate(candidate_blobs):
-                dissimilarity = self.dissimilarity(candidate_blob)
-                if dissimilarity < threshold and dissimilarity < best_dissimilarity:
+                dissimilarity = self.dissimilarity_score(candidate_blob)
+                if dissimilarity < dissimilarity_threshold and dissimilarity < best_dissimilarity:
                     best_blob = candidate_blob
                     best_dissimilarity = dissimilarity
                     best_index = index
@@ -466,13 +480,82 @@ class Blob:
                 candidate_blobs.pop(best_index)
         return label
 
-    def dissimilarity(self, other):
+    def dissimilarity_score(self, other):
         '''
             Calculating the dissimilarity of two blobs, as lower the dissimilarity as more likely the two blobs represent the same one in two different frames
         '''
         area_diff = abs(other.area - self.area)
         barycenter_diff = abs((other.cx - self.cx) + (other.cy - self.cy))
         return area_diff + barycenter_diff
+
+    def classification_score(self):
+        return self.area
+
+
+    def edge_score(self, frame):
+
+        sum = len(self.main_contours)
+
+        #Calculating the derivatives to obtain the gradient value to verify if the object is a true object or a fake one
+        
+        val = 0
+
+        mat_x = np.flip(np.array([
+            [-1, -2, -1],
+            [0, 0, 0],
+            [1, 2, 1],
+        ]))
+
+        mat_y = np.flip(np.array([
+            [-1, 0, 1],
+            [-2, 0, 2],
+            [-1, 0, 1],
+        ]))
+
+        for coord in self.main_contours:
+            y, x = coord[0][0], coord[0][1]
+
+            window = frame[x-1:x+2,y-1:y+2]
+            if window.shape == (3, 3):
+                val += np.maximum(abs((window * mat_x).sum()), abs((mat_y * window).sum()))
+        
+        valA = self.tmp()
+
+        if valA != val:
+            print("XXX")
+            
+        return valA / sum
+
+    #TODO: Remove
+    def tmp(self, frame):
+        valA = 0
+        x_max, y_max = frame.shape
+        for coord in self.main_contours:
+            y, x = coord[0][0], coord[0][1]
+
+            if y <= 0 or y >= y_max - 1 or x <= 0 or x >= x_max - 1:
+                dx = 0
+                dy = 0
+            else:
+                dx = self.i4y(frame, x, y+1) - self.i4y(frame, x, y-1)
+                dy = self.i4x(frame, x+1, y) - self.i4x(frame, x-1, y)
+
+            valA += max(abs(dx), abs(dy))
+        return valA
+
+    #TODO: Remove
+    def i4x(self, frame, i, j):
+        '''
+            Smooth derivative along x
+        '''
+        return frame[i, j-1] + 2 * frame[i, j] + frame[i, j+1]
+
+    #TODO: Remove
+    def i4y(self, frame, i, j):
+        '''
+            Smooth derivative along y
+        '''
+        return frame[i-1, j] + 2 * frame[i, j] + frame[i+1, j]
 
 class BlobClass(Enum):
     '''
@@ -483,3 +566,7 @@ class BlobClass(Enum):
 
     def __str__(self):
         return self.name
+
+class BackgroundMethod(Enum):
+    BLIND = 1
+    SELECTIVE = 2

@@ -56,6 +56,7 @@ class ParameterSet:
         Returns a string representing uniquely the current set of parameters, used for generating the output files names
         '''
         
+        return "{}/tuning".format(self.output_directory)
         return "{}/tuning_{}_{}_{}_{}_{}".format(
             self.output_directory, 
             self.background,

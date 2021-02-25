@@ -1,4 +1,5 @@
 import numpy as np
+from matplotlib import pyplot as plt
 
 # Distance Functions
 
@@ -17,3 +18,13 @@ def distance_euclidean(img1, img2):
     img2 = np.tile(img2.astype(float)[:,:,np.newaxis], 3)
     return np.sqrt(np.sum((img2 - img1) ** 2, axis=-1))
 
+def subplot_images(image_dicts):
+    plt.figure(figsize=(20, 10))
+    for index, image_dict in enumerate(image_dicts):
+        #img = getattr(image_dict['object'], image_dict['key'])
+        plt.subplot(1, len(image_dicts), index+1)
+        plt.axis('off')
+        if image_dict['title'] is None:
+             image_dict['title'] = None
+        image_dict['object'].display(image_dict['key'], title=image_dict['title'], show=False)
+        #plt.imshow(img, cmap='gray', vmin=0, vmax=255)
