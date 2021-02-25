@@ -519,7 +519,7 @@ class Blob:
             if window.shape == (3, 3):
                 val += np.maximum(abs((window * mat_x).sum()), abs((mat_y * window).sum()))
         
-        valA = self.tmp()
+        valA = self.tmp(frame)
 
         if valA != val:
             print("XXX")
