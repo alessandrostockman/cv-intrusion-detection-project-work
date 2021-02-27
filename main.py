@@ -12,9 +12,9 @@ param_bag = ParameterList({
     "distance": [distance_euclidean],
     "morph_ops": [
         MorphOpsSet(
-    MorphOp(cv2.MORPH_OPEN, (3,3)),
-    MorphOp(cv2.MORPH_CLOSE, (45,70), cv2.MORPH_ELLIPSE),
-    #MorphOp(cv2.MORPH_OPEN, (6,6), cv2.MORPH_ELLIPSE),
+            MorphOp(cv2.MORPH_OPEN, (3,3)),
+            MorphOp(cv2.MORPH_CLOSE, (45,70), cv2.MORPH_ELLIPSE),
+            MorphOp(cv2.MORPH_OPEN, (6,6), cv2.MORPH_ELLIPSE),
         )
     ],
     "background_threshold": [37],
@@ -30,7 +30,10 @@ param_bag = ParameterList({
     "background": {
         "frames": [80],
         "interpolation": [np.median]
-    }
+    },
+    "similarity_threshold": 5000,
+    "classification_threshold": 100,
+    "edge_threshold": 2000,
 })
 
 for params in param_bag:

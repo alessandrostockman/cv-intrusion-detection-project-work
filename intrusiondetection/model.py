@@ -5,6 +5,8 @@ from matplotlib import pyplot as plt
 from enum import Enum
 from copy import copy
 
+from intrusiondetection.utility import hue_to_rgb
+
 class Video:
     '''
     Class Video defining the video that will be written in output
@@ -15,11 +17,8 @@ class Video:
         self.backgrounds = []
         self.cap = cv2.VideoCapture(input_video_path)
 
-        #Width
         self.w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        #Height
         self.h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        #fps
         self.fps = self.cap.get(cv2.CAP_PROP_FPS)
 
         self.load_video()
@@ -57,7 +56,7 @@ class Video:
         '''
 
         output_streams = {
-            'foreground': ['blobs_contours', 'blobs_filled', 'mask_refined', 'subtraction', 'mask_raw', 'mask_refined'],
+            'foreground': ['image_output', 'blobs_detected', 'blobs_classified', 'image_blobs', 'blobs_remapped', 'blobs_labeled', 'mask_refined', 'subtraction', 'mask_raw', 'mask_refined'],
             'background': ['subtraction', 'mask_raw', 'mask_refined', 'image', 'blind']
         }
 
@@ -156,24 +155,28 @@ class Frame(Displayable):
     def __init__(self, image):
         self.image = image[:,:,0]
         self.image_triple_channel = image
+        self.image_blobs = self.image_triple_channel.copy()
+        self.image_output = self.image_triple_channel.copy()
+        
         self.subtraction = None
         self.mask_raw = None
         self.mask_refined = None
-        self.blobs_contours = self.image_triple_channel
-        self.blobs_filled = self.image_triple_channel
+        self.blobs_labeled = None
+        self.blobs_remapped = None
+        self.blobs_classified = None
+        self.blobs_detected = None
 
         self.blobs = []
 
     def intrusion_detection(self, params, bg, previous_blobs):
         self.apply_change_detection(bg, params.threshold, params.distance)
         self.apply_morphology_operators(params.morph_ops)
-        self.apply_blob_analysis(previous_blobs, 5000) #TODO Threshold
-
-        #TODO Refactor
-        print(self.blobs_contours.shape, self.blobs_contours.dtype)
-        for blob in previous_blobs:
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            cv2.putText(self.blobs_contours, str(blob), (blob.cx, blob.cy), font, .2, (255,255,255), 1, cv2.LINE_AA)
+        self.apply_blob_analysis(previous_blobs, params.similarity_threshold, params.classification_threshold, params.edge_threshold)
+        #self.apply_blob_labeling()
+        #self.apply_blob_remapping(previous_blobs, params.similarity_threshold)
+        #self.apply_classification(params.classification_threshold)
+        #self.apply_object_recognition(params.edge_threshold)
+        #self.generate_output()
     
     def apply_change_detection(self, background, threshold, distance):
         '''
@@ -188,97 +191,65 @@ class Frame(Displayable):
         '''
         self.mask_refined = morph_ops.apply(self.mask_raw)
 
-    def apply_blob_analysis(self, previous_blobs, similarity_threshold):
-        '''
-            Detects the blobs and creates them. Returns the blobs (as dictionaries) and the respective frames with the contour drawn on it
-        ''' 
-        num_labels, labels = cv2.connectedComponents(self.mask_refined)
-
-        #No blobs detected
-        if num_labels <= 1:
-            self.blobs = []
-            self.blobs_filled = self.image
-            self.blobs_labeled = self.image
-            self.blobs_remapped = self.image
-            self.blobs_classified = self.image
-            self.blobs_refined = self.image
-            #self.blobs_contours = self.image
-            return
-        
-        new_labels = 0
-        blobs = []
-
-        candidate_blobs = copy(previous_blobs)
-        #operating on each blob found in the frame
-        for curr_label in range(1, num_labels):
-            blob_mask = np.where(labels == curr_label, 255, 0).astype(np.uint8)
-            
-            blob = Blob(self.image, blob_mask, 100, 2000)
-            
-            #blob is not created due to noise
-            if blob.is_valid:
-                matched_label = blob.search_matching_blob(candidate_blobs, similarity_threshold)
-
-                #if we canno't match the blob to a previous blob then it means that we need to associate a new label on the detected blob
-                if matched_label is None:
-                    prev_labels_number = max([x.label for x in previous_blobs], default=0)
-                    new_labels += 1
-                    matched_label = new_labels + prev_labels_number
-                    
-                blob.label = matched_label
-                blobs.append(blob)
-
-        blob_frame = self.image_triple_channel.copy()
-        cont_frame = self.image_triple_channel.copy()
-        #TODO Trovare un modo per fare i colori
-        color_palette = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255), (128, 0, 0), (0, 128, 0), (0, 0, 128)]
-        for index, blob in enumerate(blobs):
-            #color = color_palette[blob.label]
-            color = color_palette[0] #TODO Color based on classification
-
-            cv2.drawContours(cont_frame, blob.contours, -1, color, 1)
-            blob_frame[blob.mask > 0] = color
-
-        self.blobs = blobs
-        self.blobs_filled = blob_frame
-        self.blobs_labeled = blob_frame
-        self.blobs_remapped = blob_frame
-        self.blobs_classified = blob_frame
-        self.blobs_refined = blob_frame
-        self.blobs_contours = cont_frame
+    def apply_blob_analysis(self, previous_blobs, similarity_threshold, classification_threshold, edge_threshold):
+        self.apply_blob_labeling()
+        self.apply_blob_remapping(previous_blobs, similarity_threshold)
+        self.apply_classification(classification_threshold)
+        self.apply_object_recognition(edge_threshold)
+        self.generate_output()
 
     def apply_blob_labeling(self, colored_output=False):
-        labels_num, self.blob_labeled = cv2.connectedComponents(self.mask_refined)
+        num_labels, labels = cv2.connectedComponents(self.mask_refined)
+        self.blobs_labeled = self.image_blobs.copy()
 
-        self.x = labels * color
+        #No blobs detected
+        if num_labels > 1:
+            for curr_label in range(1, num_labels):
+                blob_mask = np.where(labels == curr_label, 255, 0).astype(np.uint8)
+                blob = Blob(curr_label, blob_mask)
+                blob.label = curr_label
+                self.blobs.append(blob)
 
-    def apply_blob_linkage(self, labels_num, dissimilarity_threshold):
-        new_labels = 0
-        blobs = []
-        blobs = []
-        for curr_label in range(1, labels_num):
-            blob_mask = np.where(labels == curr_label, 255, 0).astype(np.uint8)
-            blob = Blob(self.image, blob_mask, 100, 2000) #TODO Spostare i threhsold
-            
-            #blob is not created due to noise
-            if blob.is_valid:
-                matched_label = blob.search_matching_blob(candidate_blobs, similarity_threshold)
+                self.image_blobs[blob_mask > 0] = hue_to_rgb(curr_label * 179 / (num_labels - 1))
+                cv2.putText(self.blobs_labeled, "#"+str(blob.label), blob.center(), cv2.FONT_HERSHEY_SIMPLEX, .2, (255,255,255), 1, cv2.LINE_AA)
 
-                #if we canno't match the blob to a previous blob then it means that we need to associate a new label on the detected blob
-                if matched_label is None:
-                    prev_labels_number = max([x.label for x in previous_blobs], default=0)
-                    new_labels += 1
-                    matched_label = new_labels + prev_labels_number
-                    
-                blob.label = matched_label
-                blobs.append(blob)
-        self.blobs = blobs
+    def apply_blob_remapping(self, previous_blobs, similarity_threshold):
+        candidate_blobs = copy(previous_blobs)
+        self.blobs_remapped = self.image_blobs.copy()
+        
+        new_ids = 0
+        for blob in self.blobs:
+            matched_id = blob.search_matching_blob(candidate_blobs, similarity_threshold)
+
+            #if we canno't match the blob to a previous blob then it means that we need to associate a new label on the detected blob
+            if matched_id is None:
+                prev_ids_number = max([x.id for x in previous_blobs], default=0)
+                new_ids += 1
+                matched_id = new_ids + prev_ids_number
+                
+            blob.id = matched_id
+            cv2.putText(self.blobs_remapped, "#"+str(blob.id), blob.center(), cv2.FONT_HERSHEY_SIMPLEX, .2, (255,255,255), 1, cv2.LINE_AA)
 
     def apply_classification(self, classification_threshold):
-        pass
+        self.blobs_classified = self.image_blobs.copy()
+        for blob in self.blobs:
+            blob_class = blob.classify(classification_threshold)
+            cv2.putText(self.blobs_classified, str(blob.blob_class), blob.center(), cv2.FONT_HERSHEY_SIMPLEX, .2, (255,255,255), 1, cv2.LINE_AA)
 
     def apply_object_recognition(self, edge_threshold):
-        pass
+        self.blobs_detected = self.image_blobs.copy()
+        for blob in self.blobs:
+            if blob.detect(self.image, edge_threshold):
+                name = "True"
+            else:
+                name = "False"
+            cv2.putText(self.blobs_detected, name+" "+str(blob.blob_class), blob.center(), cv2.FONT_HERSHEY_SIMPLEX, .2, (255,255,255), 1, cv2.LINE_AA)
+
+
+    def generate_output(self):
+        for blob in self.blobs:
+            cv2.drawContours(self.image_output, blob.contours, -1, blob.color(), 1)
+            #blob_frame[blob.mask > 0] = blob.color
 
     def write_text_output(self, csv_writer, frame_index):
         csv_writer.writerow([frame_index, len(self.blobs)])
@@ -289,9 +260,6 @@ class Background(Displayable):
     '''
         Class background providing operations to obtain the background
     '''
-
-
-    
 
     def __init__(self, input_video_path=None, interpolation=None, frames_n=None, image=None):
         '''
@@ -412,32 +380,36 @@ class MorphOpsSet:
             mask = mask[kernel_y:-kernel_y, kernel_x:-kernel_x]
         return mask
 
+class BlobClass(Enum):
+    '''
+        Enum to distinguish the type of the blob
+    '''
+    PERSON = 1
+    OBJECT = 2
+    FAKE = 3
+
+    def __str__(self):
+        return self.name
+
+class BackgroundMethod(Enum):
+    BLIND = 1
+    SELECTIVE = 2
+
 class Blob:
 
-    def __init__(self, frame, mask, edge_threshold, classification_threshold):
-        self.label = None
+    color_palette = { 
+        BlobClass.OBJECT: (255, 0, 0),
+        BlobClass.PERSON: (0, 255, 0),
+        BlobClass.FAKE: (0, 0, 255),
+    }
+
+    def __init__(self, label, mask):
+        self.label = label
         self.contours = self.parse_contours(mask)
         self.main_contours = self.contours[0]
-        self.image = frame
         self.mask = mask
 
-        #TODO Controllare se le feature si possono calcolare in modi migliori
-
-        self.area = cv2.contourArea(self.main_contours)
-        self.perimeter = cv2.arcLength(self.main_contours, True)
-        moments = cv2.moments(self.main_contours)
-        
-        #Obtaining the barycentre of the blob
-        self.cx = int(moments['m10']/moments['m00'])
-        self.cy = int(moments['m01']/moments['m00'])
-        
-        self.edge_strength = self.edge_score(frame)
-        #not considering blob which area is below 500 pixel cause they are due to noise 
-        self.is_valid = True#self.area > 500
-        #detecting true blob from fake one in base of the gradient of the value of the edge
-        self.is_present = self.edge_strength > edge_threshold
-        #Distinguish wether a blob is a person or an object in base of the are of his blob 
-        self.blob_class = BlobClass.PERSON if self.classification_score() > classification_threshold else BlobClass.OBJECT
+        self.id = None
 
     def __str__(self):
         name = ""
@@ -447,8 +419,22 @@ class Blob:
             name = "FAKE"
         return str(self.classification_score()) + " " + name
 
+    def compute_features(self):
+        #TODO Check wether features are computable in a better way
+
+        self.area = cv2.contourArea(self.main_contours)
+        self.perimeter = cv2.arcLength(self.main_contours, True)
+        moments = cv2.moments(self.main_contours)
+        
+        #Obtaining the barycentre of the blob
+        if moments['m00'] == 0: #TODO Remove
+            moments['m00'] = 1
+            print("ERR")
+        self.cx = int(moments['m10']/moments['m00'])
+        self.cy = int(moments['m01']/moments['m00'])
+
     def attributes(self):
-        return [self.label, self.area, self.perimeter, self.blob_class]
+        return [self.id, self.area, self.perimeter, self.blob_class]
 
     def parse_contours(self, image):
         ret = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -463,7 +449,7 @@ class Blob:
         '''
             Detcting matching blobs using the dissimilarity method shown below
         '''
-        label = None
+        id = None
         if len(candidate_blobs) > 0:
             best_blob = None
             best_dissimilarity = 1000000
@@ -476,9 +462,9 @@ class Blob:
                     best_index = index
 
             if best_blob is not None:
-                label = best_blob.label
+                id = best_blob.id
                 candidate_blobs.pop(best_index)
-        return label
+        return id
 
     def dissimilarity_score(self, other):
         '''
@@ -491,6 +477,17 @@ class Blob:
     def classification_score(self):
         return self.area
 
+    def classify(self, classification_threshold):
+        self.compute_features()
+        #Distinguish wether a blob is a person or an object in base of the are of his blob 
+        self.blob_class = BlobClass.PERSON if self.classification_score() > classification_threshold else BlobClass.OBJECT
+        return self.blob_class
+
+    def detect(self, frame, edge_threshold):
+        self.compute_features()
+        #detecting true blob from fake one in base of the gradient of the value of the edge
+        self.is_present = self.edge_score(frame) > edge_threshold
+        return self.is_present
 
     def edge_score(self, frame):
 
@@ -526,6 +523,16 @@ class Blob:
             
         return valA / sum
 
+    def center(self):
+        self.compute_features()
+        return (self.cx, self.cy)
+
+    def color(self):
+        self.color = self.color_palette[self.blob_class]
+        if not self.is_present:
+            self.color = self.color_palette[BlobClass.FAKE]
+        return self.color
+
     #TODO: Remove
     def tmp(self, frame):
         valA = 0
@@ -556,17 +563,3 @@ class Blob:
             Smooth derivative along y
         '''
         return frame[i-1, j] + 2 * frame[i, j] + frame[i+1, j]
-
-class BlobClass(Enum):
-    '''
-        Enum to distinguish the type of the blob
-    '''
-    PERSON = 1
-    OBJECT = 2
-
-    def __str__(self):
-        return self.name
-
-class BackgroundMethod(Enum):
-    BLIND = 1
-    SELECTIVE = 2

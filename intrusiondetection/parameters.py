@@ -8,7 +8,10 @@ class ParameterList:
 
     def __init__(self, params):
         global_keys = {'input_video', 'output_directory'}
-        tuning_keys = {'threshold', 'distance', 'background_threshold', 'background_distance', 'alpha', 'background', 'morph_ops', 'background_morph_ops'}
+        tuning_keys = {
+            'threshold', 'distance', 'background_threshold', 'background_distance', 'alpha', 'background', 'morph_ops', 
+            'background_morph_ops', 'similarity_threshold', 'classification_threshold', 'edge_threshold'
+        }
 
         global_params = {key: val for key, val in params.items() if key in global_keys}
 
@@ -46,6 +49,9 @@ class ParameterSet:
         self.background_morph_ops = tuning_params['background_morph_ops']
         self.background_threshold = tuning_params['background_threshold']
         self.background_distance = tuning_params['background_distance']
+        self.similarity_threshold = tuning_params['similarity_threshold']
+        self.classification_threshold = tuning_params['classification_threshold']
+        self.edge_threshold = tuning_params['edge_threshold']
 
         self.output_video = str(self) + ".avi"
         self.output_text = str(self) + ".csv"
