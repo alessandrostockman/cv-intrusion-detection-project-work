@@ -118,7 +118,11 @@ class Displayable:
             plt.axis('off')
             if image_dict['title'] is not None:
                 plt.title(image_dict['title'])
-            plt.imshow(img, cmap='gray', vmin=0, vmax=255)
+
+            if img.shape[-1] == 3:
+                plt.imshow(img)
+            else:
+                plt.imshow(img, cmap='gray', vmin=0, vmax=255)
 
 
     def display(self, keys, title=None, show=True):
@@ -139,7 +143,11 @@ class Displayable:
         plt.axis('off')
         if title is not None:
             plt.title(title)
-        plt.imshow(img, cmap='gray', vmin=0, vmax=255)
+
+        if img.shape[-1] == 3:
+            plt.imshow(img)
+        else:
+            plt.imshow(img, cmap='gray', vmin=0, vmax=255)
         if show:
             plt.show()
 
@@ -528,10 +536,10 @@ class Blob:
         return (self.cx, self.cy)
 
     def color(self):
-        self.color = self.color_palette[self.blob_class]
+        color = self.color_palette[self.blob_class]
         if not self.is_present:
-            self.color = self.color_palette[BlobClass.FAKE]
-        return self.color
+            colorcolor = self.color_palette[BlobClass.FAKE]
+        return color
 
     #TODO: Remove
     def tmp(self, frame):
