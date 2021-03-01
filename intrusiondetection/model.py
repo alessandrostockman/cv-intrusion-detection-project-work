@@ -322,6 +322,8 @@ class Background(Displayable):
         self.subtraction = self.subtract_frame(frame.image, distance).astype(np.uint8)
         self.mask_raw = np.where(self.subtraction > threshold, 255, 0).astype(np.uint8)
         self.mask_refined = morph_ops.apply(self.mask_raw)
+        
+        self.blind = self.update_blind(frame, alpha)
         return np.where(self.mask_refined == 0, self.blind, self.image).astype(np.uint8)
         
     def subtract_frame(self, frame, distance):
