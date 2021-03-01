@@ -322,16 +322,7 @@ class Background(Displayable):
         self.subtraction = self.subtract_frame(frame.image, distance).astype(np.uint8)
         self.mask_raw = np.where(self.subtraction > threshold, 255, 0).astype(np.uint8)
         self.mask_refined = morph_ops.apply(self.mask_raw)
-
-        #TODO Refactor
-        mask1 = np.zeros(self.mask_refined.shape, dtype=np.uint8)
-        mask2 = np.zeros(self.mask_refined.shape, dtype=np.uint8)
-        mask1[self.mask_refined == 0] = 1
-        mask2[self.mask_refined != 0] = 1
-
-        self.blind = self.update_blind(frame, alpha)
-        new = self.blind * mask1 + self.image * mask2
-        return new.astype(np.uint8)
+        return np.where(self.mask_refined == 0, self.blind, self.image).astype(np.uint8)
         
     def subtract_frame(self, frame, distance):
         '''
