@@ -523,13 +523,8 @@ class Blob:
             window = frame[x-1:x+2,y-1:y+2]
             if window.shape == (3, 3):
                 val += np.maximum(abs((window * mat_x).sum()), abs((mat_y * window).sum()))
-        
-        valA = self.tmp(frame)
-
-        if valA != val:
-            print("XXX")
             
-        return valA / sum
+        return val / sum
 
     def center(self):
         self.compute_features()
@@ -540,34 +535,3 @@ class Blob:
         if not self.is_present:
             colorcolor = self.color_palette[BlobClass.FAKE]
         return color
-
-    #TODO: Remove
-    def tmp(self, frame):
-        valA = 0
-        x_max, y_max = frame.shape
-        for coord in self.main_contours:
-            y, x = coord[0][0], coord[0][1]
-
-            if y <= 0 or y >= y_max - 1 or x <= 0 or x >= x_max - 1:
-                dx = 0
-                dy = 0
-            else:
-                dx = self.i4y(frame, x, y+1) - self.i4y(frame, x, y-1)
-                dy = self.i4x(frame, x+1, y) - self.i4x(frame, x-1, y)
-
-            valA += max(abs(dx), abs(dy))
-        return valA
-
-    #TODO: Remove
-    def i4x(self, frame, i, j):
-        '''
-            Smooth derivative along x
-        '''
-        return frame[i, j-1] + 2 * frame[i, j] + frame[i, j+1]
-
-    #TODO: Remove
-    def i4y(self, frame, i, j):
-        '''
-            Smooth derivative along y
-        '''
-        return frame[i-1, j] + 2 * frame[i, j] + frame[i+1, j]
