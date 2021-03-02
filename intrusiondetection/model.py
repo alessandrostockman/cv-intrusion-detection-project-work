@@ -4,6 +4,7 @@ import cv2
 from matplotlib import pyplot as plt
 from enum import Enum
 from copy import copy
+import math
 
 from intrusiondetection.utility import hue_to_rgb
 
@@ -60,8 +61,6 @@ class Video:
             'background': ['subtraction', 'mask_raw', 'mask_refined', 'image', 'blind']
         }
 
-        # outputs = ['mask_raw','mask_refined','bg_image','blob_cont','blob_fill','bg_mask_raw','bg_mask_refined'] TODO
-        #creating the output streams
         self.outputs = {output_type: {
             key: self.create_output_stream(self.w, self.h, self.fps, str(params) + "_" + output_type + "_" + key + ".avi") for key in outputs
         } for output_type, outputs in output_streams.items()}
@@ -214,12 +213,12 @@ class Frame(Displayable):
         if num_labels > 1:
             for curr_label in range(1, num_labels):
                 blob_mask = np.where(labels == curr_label, 255, 0).astype(np.uint8)
-                blob = Blob(curr_label, blob_mask)
+                blob = Blob(curr_label, blob_mask, self.image)
                 blob.label = curr_label
                 self.blobs.append(blob)
 
                 self.image_blobs[blob_mask > 0] = hue_to_rgb(curr_label * 179 / (num_labels - 1))
-                cv2.putText(self.blobs_labeled, "#"+str(blob.label), blob.center(), cv2.FONT_HERSHEY_SIMPLEX, .2, (255,255,255), 1, cv2.LINE_AA)
+                blob.write_text(self.blobs_labeled, str(blob.label))
 
     def apply_blob_remapping(self, previous_blobs, similarity_threshold):
         candidate_blobs = copy(previous_blobs)
@@ -236,27 +235,36 @@ class Frame(Displayable):
                 matched_id = new_ids + prev_ids_number
                 
             blob.id = matched_id
-            cv2.putText(self.blobs_remapped, "#"+str(blob.id), blob.center(), cv2.FONT_HERSHEY_SIMPLEX, .2, (255,255,255), 1, cv2.LINE_AA)
+            blob.write_text(self.blobs_remapped, str(blob.id))
 
     def apply_classification(self, classification_threshold):
         self.blobs_classified = self.image_blobs.copy()
         for blob in self.blobs:
             blob_class = blob.classify(classification_threshold)
-            cv2.putText(self.blobs_classified, str(blob.blob_class), blob.center(), cv2.FONT_HERSHEY_SIMPLEX, .2, (255,255,255), 1, cv2.LINE_AA)
+            blob.write_text(self.blobs_classified, str(blob_class) + " " + str(blob.classification_score()))
 
     def apply_object_recognition(self, edge_threshold):
+        self.blobs_detected = self.image.copy()
+        for blob in self.blobs:
+            if blob.detect(edge_threshold):
+                name = "True"
+                self.blobs_detected = np.where(blob.mask > 0, 255, self.blobs_detected)
+            else:
+                name = "False"
+            blob.write_text(self.blobs_detected, name+" " + str(blob.edge_score()))
+        return
+
         self.blobs_detected = self.image_blobs.copy()
         for blob in self.blobs:
-            if blob.detect(self.image, edge_threshold):
+            if blob.detect(edge_threshold):
                 name = "True"
             else:
                 name = "False"
-            cv2.putText(self.blobs_detected, name+" "+str(blob.blob_class), blob.center(), cv2.FONT_HERSHEY_SIMPLEX, .2, (255,255,255), 1, cv2.LINE_AA)
-
+            blob.write_text(self.blobs_detected, name+" " + str(blob.edge_score()))
 
     def generate_output(self):
         for blob in self.blobs:
-            cv2.drawContours(self.image_output, blob.contours, -1, blob.color(), 1)
+            cv2.drawContours(self.image_output, blob.contours, -1, blob.color, 1)
             #blob_frame[blob.mask > 0] = blob.color
 
     def write_text_output(self, csv_writer, frame_index):
@@ -404,13 +412,20 @@ class Blob:
         BlobClass.FAKE: (0, 0, 255),
     }
 
-    def __init__(self, label, mask):
+    def __init__(self, label, mask, original_frame):
         self.label = label
         self.contours = self.parse_contours(mask)
         self.main_contours = self.contours[0]
         self.mask = mask
+        self.frame = original_frame
 
         self.id = None
+        self.compute_features()
+
+        self.__cs = None
+        self.__es = None
+        self.blob_class = None
+        self.is_present = True
 
     def __str__(self):
         name = ""
@@ -421,18 +436,15 @@ class Blob:
         return str(self.classification_score()) + " " + name
 
     def compute_features(self):
-        #TODO Check wether features are computable in a better way
-
-        self.area = cv2.contourArea(self.main_contours)
-        self.perimeter = cv2.arcLength(self.main_contours, True)
         moments = cv2.moments(self.main_contours)
-        
-        #Obtaining the barycentre of the blob
         if moments['m00'] == 0: #TODO Remove
             moments['m00'] = 1
             print("ERR")
-        self.cx = int(moments['m10']/moments['m00'])
-        self.cy = int(moments['m01']/moments['m00'])
+
+        self.perimeter = cv2.arcLength(self.main_contours, True)
+        self.area = moments['m00']
+        self.cx = int(moments['m10']/self.area)
+        self.cy = int(moments['m01']/self.area)
 
     def attributes(self):
         return [self.id, self.area, self.perimeter, self.blob_class]
@@ -453,7 +465,7 @@ class Blob:
         id = None
         if len(candidate_blobs) > 0:
             best_blob = None
-            best_dissimilarity = 1000000
+            best_dissimilarity = math.inf
             best_index = -1
             for index, candidate_blob in enumerate(candidate_blobs):
                 dissimilarity = self.dissimilarity_score(candidate_blob)
@@ -471,60 +483,59 @@ class Blob:
         '''
             Calculating the dissimilarity of two blobs, as lower the dissimilarity as more likely the two blobs represent the same one in two different frames
         '''
+        #TODO Improve
         area_diff = abs(other.area - self.area)
         barycenter_diff = abs((other.cx - self.cx) + (other.cy - self.cy))
         return area_diff + barycenter_diff
 
     def classification_score(self):
-        return self.area
+        if self.__cs == None:
+            self.__cs = self.area
+        return self.__cs
+
+    def edge_score(self):
+        #Calculating the derivatives to obtain the gradient value to verify if the object is a true object or a fake one
+        if self.__es == None:
+            val = 0
+            mat_x = np.flip(np.array([
+                [-1, -2, -1],
+                [0, 0, 0],
+                [1, 2, 1],
+            ]))
+            mat_y = np.flip(np.array([
+                [-1, 0, 1],
+                [-2, 0, 2],
+                [-1, 0, 1],
+            ]))
+
+            for coord in self.main_contours:
+                y, x = coord[0][0], coord[0][1]
+
+                window = self.frame[x-1:x+2,y-1:y+2]
+                if window.shape == (3, 3):
+                    val += np.maximum(abs((window * mat_x).sum()), abs((mat_y * window).sum()))
+                
+            self.__es = val / len(self.main_contours)
+        return self.__es
 
     def classify(self, classification_threshold):
-        self.compute_features()
         #Distinguish wether a blob is a person or an object in base of the are of his blob 
         self.blob_class = BlobClass.PERSON if self.classification_score() > classification_threshold else BlobClass.OBJECT
+        self.color = self.color_palette[self.blob_class]
         return self.blob_class
 
-    def detect(self, frame, edge_threshold):
-        self.compute_features()
+    def detect(self, edge_threshold):
         #detecting true blob from fake one in base of the gradient of the value of the edge
-        self.is_present = self.edge_score(frame) > edge_threshold
+        self.is_present = self.edge_score() > edge_threshold
+        if not self.is_present:
+            self.color = self.color_palette[BlobClass.FAKE]
         return self.is_present
 
-    def edge_score(self, frame):
+    def write_text(self, image, text, scale=.5, thickness=1):
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        textsize = cv2.getTextSize(text, font, scale, thickness)[0]
+        offset = textsize[0] // 2
+        #center = (self.cx - offset, self.cy - offset)
+        center = (self.cx, self.cy)
+        cv2.putText(image, text, center, font, scale, (0,255,0), thickness, cv2.LINE_AA)
 
-        sum = len(self.main_contours)
-
-        #Calculating the derivatives to obtain the gradient value to verify if the object is a true object or a fake one
-        
-        val = 0
-
-        mat_x = np.flip(np.array([
-            [-1, -2, -1],
-            [0, 0, 0],
-            [1, 2, 1],
-        ]))
-
-        mat_y = np.flip(np.array([
-            [-1, 0, 1],
-            [-2, 0, 2],
-            [-1, 0, 1],
-        ]))
-
-        for coord in self.main_contours:
-            y, x = coord[0][0], coord[0][1]
-
-            window = frame[x-1:x+2,y-1:y+2]
-            if window.shape == (3, 3):
-                val += np.maximum(abs((window * mat_x).sum()), abs((mat_y * window).sum()))
-            
-        return val / sum
-
-    def center(self):
-        self.compute_features()
-        return (self.cx, self.cy)
-
-    def color(self):
-        color = self.color_palette[self.blob_class]
-        if not self.is_present:
-            colorcolor = self.color_palette[BlobClass.FAKE]
-        return color
