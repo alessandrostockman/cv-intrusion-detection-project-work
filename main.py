@@ -3,7 +3,9 @@ import cv2
 
 from intrusiondetection.parameters import ParameterList
 from intrusiondetection.utility import distance_euclidean
-from intrusiondetection.model import MorphOp, MorphOpsSet, Video, Background
+from intrusiondetection.morphology import MorphOp, MorphOpsSet
+from intrusiondetection.video import Video
+from intrusiondetection.displayable import Background
 
 param_bag = ParameterList({
     "input_video": "rilevamento-intrusioni-video.avi",

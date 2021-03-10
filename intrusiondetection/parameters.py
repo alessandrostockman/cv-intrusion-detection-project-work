@@ -2,7 +2,7 @@ import itertools
 import numpy as np
 import cv2
 
-from intrusiondetection.model import Background
+#from intrusiondetection.model import Background
 
 class ParameterList:
 
