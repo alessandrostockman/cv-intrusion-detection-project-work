@@ -8,6 +8,8 @@ import math
 
 from intrusiondetection.utility import hue_to_rgb
 
+#TODO Decompose in different files
+
 class Video:
     '''
     Class Video defining the video that will be written in output
@@ -33,19 +35,25 @@ class Video:
             self.frames.append(Frame(frame_image))
 
     def process_backgrounds(self, update_mode, initial_background, alpha, threshold=None, distance=None, morph_ops=None):
+        """
+            Method used only for demonstration purposes
+        """
         bg = initial_background
         backgrounds = [bg]
         for fr in self.frames:
-            if update_mode == 'selective':
+            if update_mode == BackgroundMethod.SELECTIVE:
                 bg_image = bg.update_selective(fr, threshold, distance, alpha, morph_ops)
-            else:
+            elif update_mode == BackgroundMethod.BLIND:
                 bg_image = bg.update_blind(fr, alpha)
+            else:
+                raise ValueError("update_mode must be a BackgroundMethod")
+
 
             bg = Background(image=bg_image)
             backgrounds.append(bg)
         return backgrounds
 
-    def intrusion_detection(self, params, backgrounds):
+    def intrusion_detection(self, params, initial_background):
         '''
         Method that computes the change detection:
         Compuetes the background via selective update;
@@ -56,41 +64,42 @@ class Video:
         Modifies the output to write them on the output stream.
         '''
 
-        output_streams = {
-            'foreground': ['image_output', 'blobs_detected', 'blobs_classified', 'image_blobs', 'blobs_remapped', 'blobs_labeled', 'mask_refined', 'subtraction', 'mask_raw', 'mask_refined'],
-            'background': ['subtraction', 'mask_raw', 'mask_refined', 'image', 'blind']
-        }
-
         self.outputs = {output_type: {
             key: self.create_output_stream(self.w, self.h, self.fps, str(params) + "_" + output_type + "_" + key + ".avi") for key in outputs
-        } for output_type, outputs in output_streams.items()}
+        } for output_type, outputs in params.output_streams.items()}
 
         try:
             csv_file = open(params.output_text, mode='w')
             csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             prev_fr = None
+            prev_bg = initial_background
 
             for fr in self.frames:
                 prev_blobs = []
-                bg = backgrounds[self.frame_index]
                 if prev_fr is not None:
                     prev_blobs = prev_fr.blobs
+
+                bg_image = prev_bg.update_selective(fr, params.background_threshold, params.background_distance, params.background_alpha, params.background_morph_ops)
+                bg = Background(image=bg_image)
 
                 fr.intrusion_detection(params, bg, prev_blobs)
 
                 for output_type, outputs in self.outputs.items():
-                    obj = fr if output_type == 'foreground' else bg
+                    obj = fr if output_type == 'foreground' else prev_bg
                     for key, out in outputs.items():
-                        x = getattr(obj, key)
-                        if x.shape[-1] != 3:
-                            x = np.tile(x[:,:,np.newaxis], 3)
-                        if x.dtype != np.uint8:
-                            x = x.astype(np.uint8)                        
-                        out.write(x)
+                        output_image = getattr(obj, key, None)
+
+                        if output_image is not None:
+                            if output_image.shape[-1] != 3:
+                                output_image = np.tile(output_image[:,:,np.newaxis], 3)
+                            if output_image.dtype != np.uint8:
+                                output_image = output_image.astype(np.uint8)                        
+                            out.write(output_image)
 
                 fr.write_text_output(csv_writer, frame_index=self.frame_index)
                 self.frame_index += 1
                 prev_fr = fr
+                prev_bg = bg
         finally:
             csv_file.close()
     
@@ -196,7 +205,11 @@ class Frame(Displayable):
         '''
             Computes the binary morphology on the raw mas and assigns it on the mask_refined of the class
         '''
-        self.mask_refined = morph_ops.apply(self.mask_raw)
+        self.mask_refined, m = morph_ops.apply(self.mask_raw)
+        i = 0
+        for mask in m:
+            setattr(self, 'mask_'+str(i), mask)
+            i += 1
 
     def apply_blob_analysis(self, previous_blobs, similarity_threshold, classification_threshold, edge_threshold):
         self.apply_blob_labeling()
@@ -226,13 +239,16 @@ class Frame(Displayable):
         
         new_ids = 0
         for blob in self.blobs:
-            matched_id = blob.search_matching_blob(candidate_blobs, similarity_threshold)
+            matched_blob = blob.search_matching_blob(candidate_blobs, similarity_threshold)
 
             #if we canno't match the blob to a previous blob then it means that we need to associate a new label on the detected blob
-            if matched_id is None:
+            if matched_blob is None:
                 prev_ids_number = max([x.id for x in previous_blobs], default=0)
                 new_ids += 1
                 matched_id = new_ids + prev_ids_number
+            else:
+                blob.previous_match = matched_blob
+                matched_id = matched_blob.id
                 
             blob.id = matched_id
             blob.write_text(self.blobs_remapped, str(blob.id))
@@ -329,7 +345,9 @@ class Background(Displayable):
         '''
         self.subtraction = self.subtract_frame(frame.image, distance).astype(np.uint8)
         self.mask_raw = np.where(self.subtraction > threshold, 255, 0).astype(np.uint8)
-        self.mask_refined = morph_ops.apply(self.mask_raw)
+        self.mask_refined, m = morph_ops.apply(self.mask_raw)
+        for i, mask in enumerate(m):
+            setattr(self, 'mask_'+str(i), mask)
         
         self.blind = self.update_blind(frame, alpha)
         return np.where(self.mask_refined == 0, self.blind, self.image).astype(np.uint8)
@@ -381,13 +399,16 @@ class MorphOpsSet:
         '''
             multiple iterations of closing or opening means that we apply n°iterations-times of Dilate + n°iterations-times of Erosion or vice-versa
         '''
+        masks = [] #TODO Remove
         for op in self.get():
             kernel_x, kernel_y = op.kernel.shape
             mask=cv2.copyMakeBorder(mask, kernel_y, kernel_y, kernel_x, kernel_x,
                 borderType=cv2.BORDER_CONSTANT, value=0)
             mask = cv2.morphologyEx(mask, op.operation_type, op.kernel, iterations=op.iterations)
             mask = mask[kernel_y:-kernel_y, kernel_x:-kernel_x]
-        return mask
+
+            masks.append(mask)
+        return mask, masks
 
 class BlobClass(Enum):
     '''
@@ -426,6 +447,7 @@ class Blob:
         self.__es = None
         self.blob_class = None
         self.is_present = True
+        self.previous_match = None
 
     def __str__(self):
         name = ""
@@ -462,7 +484,7 @@ class Blob:
         '''
             Detcting matching blobs using the dissimilarity method shown below
         '''
-        id = None
+        match = None
         if len(candidate_blobs) > 0:
             best_blob = None
             best_dissimilarity = math.inf
@@ -475,9 +497,9 @@ class Blob:
                     best_index = index
 
             if best_blob is not None:
-                id = best_blob.id
+                match = best_blob
                 candidate_blobs.pop(best_index)
-        return id
+        return match
 
     def dissimilarity_score(self, other):
         '''
@@ -516,6 +538,11 @@ class Blob:
                     val += np.maximum(abs((window * mat_x).sum()), abs((mat_y * window).sum()))
                 
             self.__es = val / len(self.main_contours)
+
+            if self.previous_match is not None:
+                #TODO parametrize
+                curr_weight = 0.2
+                new = self.__es * curr_weight + self.previous_match.edge_score() * (1 - curr_weight)
         return self.__es
 
     def classify(self, classification_threshold):

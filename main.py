@@ -3,40 +3,49 @@ import cv2
 
 from intrusiondetection.parameters import ParameterList
 from intrusiondetection.utility import distance_euclidean
-from intrusiondetection.model import MorphOp, MorphOpsSet, Video
+from intrusiondetection.model import MorphOp, MorphOpsSet, Video, Background
 
 param_bag = ParameterList({
     "input_video": "rilevamento-intrusioni-video.avi",
     "output_directory": "output",
-    "threshold": [37],
+    "output_streams": {
+        'foreground': ['image_output', 'blobs_detected', 'blobs_classified', 'image_blobs', 'blobs_remapped', 'blobs_labeled', 'mask_refined', 'subtraction', 'mask_raw', 'mask_refined',],
+        #'foreground': ['subtraction', 'mask_raw', 'mask_0', 'mask_1', 'mask_2'],
+        #'background': ['blind', 'subtraction', 'mask_raw', 'mask_0', 'mask_1', 'mask_2']
+        'background': ['subtraction', 'mask_raw', 'mask_refined', 'image', 'blind']
+    },
+    "initial_background_frames": [80],
+    "initial_background_interpolation": [np.median],
+    "background_alpha": [0.3],
+    "background_threshold": [30],
+    "background_distance": [distance_euclidean],
+    "background_morph_ops": [
+        MorphOpsSet(
+            MorphOp(cv2.MORPH_OPEN, (3,3)), 
+            MorphOp(cv2.MORPH_CLOSE, (50,50), cv2.MORPH_ELLIPSE), 
+            MorphOp(cv2.MORPH_DILATE, (15,15), cv2.MORPH_ELLIPSE)
+        )
+    ],
+    "threshold": [15],
     "distance": [distance_euclidean],
     "morph_ops": [
         MorphOpsSet(
             MorphOp(cv2.MORPH_OPEN, (3,3)),
-            MorphOp(cv2.MORPH_CLOSE, (45,70), cv2.MORPH_ELLIPSE),
-            MorphOp(cv2.MORPH_OPEN, (6,6), cv2.MORPH_ELLIPSE),
+            MorphOp(cv2.MORPH_CLOSE, (50, 50), cv2.MORPH_ELLIPSE),
+            MorphOp(cv2.MORPH_OPEN, (10,10), cv2.MORPH_ELLIPSE),
         )
     ],
-    "background_threshold": [37],
-    "background_distance": [distance_euclidean],
-    "background_morph_ops": [
-        MorphOpsSet(
-            MorphOp(cv2.MORPH_OPEN, (3,3), iterations=1), 
-            MorphOp(cv2.MORPH_CLOSE, (3,3), iterations=1), 
-            MorphOp(cv2.MORPH_DILATE, (25,25), cv2.MORPH_ELLIPSE)
-        )    
-    ],
-    "alpha": [0.1],
-    "background": {
-        "frames": [80],
-        "interpolation": [np.median]
-    },
     "similarity_threshold": 5000,
-    "classification_threshold": 100,
-    "edge_threshold": 2000,
+    "classification_threshold": 2000,
+    "edge_threshold": 110,
 })
 
 for params in param_bag:
-    video = Video("rilevamento-intrusioni-video.avi")
-    backgrounds = video.process_backgrounds('selective', params.background, params.alpha, params.background_threshold, params.background_distance, params.background_morph_ops)
-    video.intrusion_detection(params, backgrounds)
+    initial_background = Background(
+        input_video_path=params.input_video, 
+        interpolation=params.initial_background_interpolation, 
+        frames_n=params.initial_background_frames
+    )
+    
+    video = Video(params.input_video)
+    video.intrusion_detection(params, initial_background)

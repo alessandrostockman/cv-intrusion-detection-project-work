@@ -7,16 +7,13 @@ from intrusiondetection.model import Background
 class ParameterList:
 
     def __init__(self, params):
-        global_keys = {'input_video', 'output_directory'}
+        global_keys = {'input_video', 'output_directory', 'output_streams'}
         tuning_keys = {
-            'threshold', 'distance', 'background_threshold', 'background_distance', 'alpha', 'background', 'morph_ops', 
-            'background_morph_ops', 'similarity_threshold', 'classification_threshold', 'edge_threshold'
+            'initial_background_frames', 'initial_background_interpolation', 'background_threshold', 'background_distance', 'background_alpha', 
+            'background_morph_ops', 'threshold', 'distance', 'morph_ops', 'similarity_threshold', 'classification_threshold', 'edge_threshold'
         }
 
         global_params = {key: val for key, val in params.items() if key in global_keys}
-
-        background = params['background']
-        params['background'] = self.setup_backgrounds(global_params['input_video'], background)
 
         tuning_params = {key: [val] if not isinstance(val, list) else val if len(val) > 0 else [None] for key, val in params.items() if key in tuning_keys}
 
@@ -25,30 +22,22 @@ class ParameterList:
     def __iter__(self):
         return self.items
 
-    def setup_backgrounds(self, input_video_path, background):
-        ''' 
-            Initializes the parameters set for the background subtraction phase,
-            Returns a list of sets containing the parameters of that run.
-        '''
-        bs = []
-        for params in (dict(zip(background, x)) for x in itertools.product(*background.values())):
-            bs.append(Background(input_video_path=input_video_path, interpolation=params["interpolation"], frames_n=params["frames"]))
-        return bs
-
 class ParameterSet:
 
     def __init__(self, global_params, tuning_params):
         self.output_directory = global_params['output_directory']
         self.input_video = global_params['input_video']
+        self.output_streams = global_params['output_streams']
 
-        self.threshold = tuning_params['threshold']
-        self.distance = tuning_params['distance']
-        self.alpha = tuning_params['alpha']
-        self.background = tuning_params['background']
-        self.morph_ops = tuning_params['morph_ops']
+        self.initial_background_frames = tuning_params['initial_background_frames']
+        self.initial_background_interpolation = tuning_params['initial_background_interpolation']
+        self.background_alpha = tuning_params['background_alpha']
         self.background_morph_ops = tuning_params['background_morph_ops']
         self.background_threshold = tuning_params['background_threshold']
         self.background_distance = tuning_params['background_distance']
+        self.threshold = tuning_params['threshold']
+        self.distance = tuning_params['distance']
+        self.morph_ops = tuning_params['morph_ops']
         self.similarity_threshold = tuning_params['similarity_threshold']
         self.classification_threshold = tuning_params['classification_threshold']
         self.edge_threshold = tuning_params['edge_threshold']
