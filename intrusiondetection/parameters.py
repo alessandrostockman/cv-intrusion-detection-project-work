@@ -2,7 +2,7 @@ import itertools
 import numpy as np
 import cv2
 
-from intrusiondetection.model import Background
+#from intrusiondetection.model import Background
 
 class ParameterList:
 
@@ -10,7 +10,7 @@ class ParameterList:
         global_keys = {'input_video', 'output_directory', 'output_streams'}
         tuning_keys = {
             'initial_background_frames', 'initial_background_interpolation', 'background_threshold', 'background_distance', 'background_alpha', 
-            'background_morph_ops', 'threshold', 'distance', 'morph_ops', 'similarity_threshold', 'classification_threshold', 'edge_threshold'
+            'background_morph_ops', 'threshold', 'distance', 'morph_ops', 'similarity_threshold', 'classification_threshold', 'edge_threshold', 'edge_adaptation'
         }
 
         global_params = {key: val for key, val in params.items() if key in global_keys}
@@ -41,6 +41,7 @@ class ParameterSet:
         self.similarity_threshold = tuning_params['similarity_threshold']
         self.classification_threshold = tuning_params['classification_threshold']
         self.edge_threshold = tuning_params['edge_threshold']
+        self.edge_adaptation = tuning_params['edge_adaptation']
 
         self.output_video = str(self) + ".avi"
         self.output_text = str(self) + ".csv"
