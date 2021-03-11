@@ -1,7 +1,8 @@
 
+from copy import copy
 import numpy as np
 import cv2
-from copy import copy
+from matplotlib import pyplot as plt
 
 from intrusiondetection.blob import Blob
 from intrusiondetection.utility import hue_to_rgb
