@@ -27,6 +27,9 @@ class Blob:
 
         self.__cs = None
         self.__es = None
+        self.__frame_width, self.__frame_height = self.mask.shape
+        self.__frame_pixels = self.__frame_width * self.__frame_height
+        self.__frame_diag = math.sqrt(self.__frame_width ** 2 + self.__frame_height ** 2)
         self.blob_class = None
         self.is_present = True
         self.previous_match = None
@@ -62,20 +65,20 @@ class Blob:
 
         return contours
 
-    def search_matching_blob(self, candidate_blobs, dissimilarity_threshold):
+    def search_matching_blob(self, candidate_blobs, similarity_threshold):
         '''
             Detcting matching blobs using the dissimilarity method shown below
         '''
         match = None
         if len(candidate_blobs) > 0:
             best_blob = None
-            best_dissimilarity = math.inf
+            best_similarity = 0
             best_index = -1
             for index, candidate_blob in enumerate(candidate_blobs):
-                dissimilarity = self.dissimilarity_score(candidate_blob)
-                if dissimilarity < dissimilarity_threshold and dissimilarity < best_dissimilarity:
+                similarity = self.similarity_score(candidate_blob)
+                if similarity > similarity_threshold and similarity > best_similarity:
                     best_blob = candidate_blob
-                    best_dissimilarity = dissimilarity
+                    best_similarity = similarity
                     best_index = index
 
             if best_blob is not None:
@@ -83,14 +86,15 @@ class Blob:
                 candidate_blobs.pop(best_index)
         return match
 
-    def dissimilarity_score(self, other):
+    def similarity_score(self, other):
         '''
-            Calculating the dissimilarity of two blobs, as lower the dissimilarity as more likely the two blobs represent the same one in two different frames
+            Calculating the similarity of two blobs, as lower the dissimilarity as more likely the two blobs represent the same one in two different frames
         '''
-        #TODO Improve
         area_diff = abs(other.area - self.area)
-        barycenter_diff = abs((other.cx - self.cx) + (other.cy - self.cy))
-        return round(area_diff + barycenter_diff)
+        area_diff_norm = area_diff / self.__frame_pixels
+        barycenter_dist = math.sqrt((other.cx - self.cx) ** 2 + (other.cy - self.cy) ** 2)
+        barycenter_dist_norm = barycenter_dist / self.__frame_diag
+        return round(1 - ((area_diff_norm + barycenter_dist_norm) / 2) * 100)
 
     def classification_score(self):
         if self.__cs == None:
@@ -112,6 +116,7 @@ class Blob:
                 [-1, 0, 1],
             ]))
 
+            #TODO Check what happens in the edges of the video
             for coord in self.main_contours:
                 y, x = coord[0][0], coord[0][1]
 

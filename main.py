@@ -37,7 +37,7 @@ param_bag = ParameterList({
             MorphOp(cv2.MORPH_OPEN, (10,10), cv2.MORPH_ELLIPSE),
         )
     ],
-    "similarity_threshold": 5000,
+    "similarity_threshold": 80,
     "classification_threshold": 2000,
     "edge_threshold": 92,
     "edge_adaptation": 0.1
