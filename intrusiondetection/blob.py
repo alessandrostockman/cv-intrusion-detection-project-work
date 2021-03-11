@@ -97,7 +97,7 @@ class Blob:
             self.__cs = self.area
         return self.__cs
 
-    def edge_score(self):
+    def edge_score(self, edge_adaptation=1):
         #Calculating the derivatives to obtain the gradient value to verify if the object is a true object or a fake one
         if self.__es == None:
             val = 0
@@ -120,6 +120,9 @@ class Blob:
                     val += np.maximum(abs((window * mat_x).sum()), abs((mat_y * window).sum()))
                 
             self.__es = val / len(self.main_contours)
+            
+            if self.previous_match is not None:
+                self.__es = self.__es * edge_adaptation + self.previous_match.edge_score() * (1 - edge_adaptation)
         return self.__es
 
     def classify(self, classification_threshold):
@@ -130,10 +133,7 @@ class Blob:
 
     def detect(self, edge_threshold, edge_adaptation):
         #detecting true blob from fake one in base of the gradient of the value of the edge
-        score = self.edge_score()
-        if self.previous_match is not None:
-            score = score * edge_adaptation + self.previous_match.edge_score() * (1 - edge_adaptation)
-        self.is_present = score > edge_threshold
+        self.is_present = self.edge_score(edge_adaptation=edge_adaptation) > edge_threshold
         if not self.is_present:
             self.color = self.color_palette[BlobClass.FAKE]
         return self.is_present
