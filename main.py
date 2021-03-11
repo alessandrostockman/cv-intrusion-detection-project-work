@@ -38,7 +38,7 @@ param_bag = ParameterList({
         )
     ],
     "similarity_threshold": 80,
-    "classification_threshold": 2000,
+    "classification_threshold": 2.6,
     "edge_threshold": 92,
     "edge_adaptation": 0.1
 })
