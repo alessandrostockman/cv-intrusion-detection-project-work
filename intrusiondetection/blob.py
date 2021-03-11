@@ -123,8 +123,8 @@ class Blob:
 
             if self.previous_match is not None:
                 #TODO parametrize
-                curr_weight = 0.2
-                new = self.__es * curr_weight + self.previous_match.edge_score() * (1 - curr_weight)
+                curr_weight = 0.1
+                self.__es = self.__es * curr_weight + self.previous_match.edge_score() * (1 - curr_weight)
         return self.__es
 
     def classify(self, classification_threshold):
@@ -146,5 +146,5 @@ class Blob:
         offset = textsize[0] // 2
         #center = (self.cx - offset, self.cy - offset)
         center = (self.cx, self.cy)
-        cv2.putText(image, text, center, font, scale, (0,255,0), thickness, cv2.LINE_AA)
+        cv2.putText(image, text, center, font, scale, (255,255,255), thickness, cv2.LINE_AA)
 
