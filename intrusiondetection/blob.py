@@ -92,11 +92,11 @@ class Blob:
         area_diff_norm = area_diff / self.__frame_pixels
         barycenter_dist = math.sqrt((other.cx - self.cx) ** 2 + (other.cy - self.cy) ** 2)
         barycenter_dist_norm = barycenter_dist / self.__frame_diag
-        return round((1 - ((area_diff_norm + barycenter_dist_norm) / 2)) * 100)
+        return round((1 - ((area_diff_norm + barycenter_dist_norm) / 2)) * 100, 2)
 
-    def classification_score(self): #TODO Normalize
+    def classification_score(self):
         if self.__cs == None:
-            self.__cs = round(self.area)
+            self.__cs = round(self.area / self.__frame_pixels * 100, 2)
         return self.__cs
 
     def edge_score(self, edge_adaptation=1):
@@ -127,7 +127,7 @@ class Blob:
             if self.previous_match is not None:
                 self.__es = self.__es * edge_adaptation + self.previous_match.edge_score() * (1 - edge_adaptation)
             
-            self.__es = round(self.__es)
+            self.__es = round(self.__es, 2)
         return self.__es
 
     def classify(self, classification_threshold):
