@@ -27,9 +27,10 @@ class Blob:
 
         self.__cs = None
         self.__es = None
-        self.__frame_width, self.__frame_height = self.mask.shape
+        self.__frame_height, self.__frame_width = self.mask.shape
         self.__frame_pixels = self.__frame_width * self.__frame_height
         self.__frame_diag = math.sqrt(self.__frame_width ** 2 + self.__frame_height ** 2)
+        
         self.blob_class = None
         self.is_present = True
         self.previous_match = None
@@ -91,7 +92,7 @@ class Blob:
         area_diff_norm = area_diff / self.__frame_pixels
         barycenter_dist = math.sqrt((other.cx - self.cx) ** 2 + (other.cy - self.cy) ** 2)
         barycenter_dist_norm = barycenter_dist / self.__frame_diag
-        return round(1 - ((area_diff_norm + barycenter_dist_norm) / 2) * 100)
+        return round((1 - ((area_diff_norm + barycenter_dist_norm) / 2)) * 100)
 
     def classification_score(self):
         if self.__cs == None:
