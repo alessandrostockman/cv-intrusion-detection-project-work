@@ -90,11 +90,11 @@ class Blob:
         #TODO Improve
         area_diff = abs(other.area - self.area)
         barycenter_diff = abs((other.cx - self.cx) + (other.cy - self.cy))
-        return area_diff + barycenter_diff
+        return round(area_diff + barycenter_diff)
 
     def classification_score(self):
         if self.__cs == None:
-            self.__cs = self.area
+            self.__cs = round(self.area)
         return self.__cs
 
     def edge_score(self, edge_adaptation=1):
@@ -123,6 +123,8 @@ class Blob:
             
             if self.previous_match is not None:
                 self.__es = self.__es * edge_adaptation + self.previous_match.edge_score() * (1 - edge_adaptation)
+            
+            self.__es = round(self.__es)
         return self.__es
 
     def classify(self, classification_threshold):
