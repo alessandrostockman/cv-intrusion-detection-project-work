@@ -120,11 +120,6 @@ class Blob:
                     val += np.maximum(abs((window * mat_x).sum()), abs((mat_y * window).sum()))
                 
             self.__es = val / len(self.main_contours)
-
-            if self.previous_match is not None:
-                #TODO parametrize
-                curr_weight = 0.1
-                self.__es = self.__es * curr_weight + self.previous_match.edge_score() * (1 - curr_weight)
         return self.__es
 
     def classify(self, classification_threshold):
@@ -133,9 +128,12 @@ class Blob:
         self.color = self.color_palette[self.blob_class]
         return self.blob_class
 
-    def detect(self, edge_threshold):
+    def detect(self, edge_threshold, edge_adaptation):
         #detecting true blob from fake one in base of the gradient of the value of the edge
-        self.is_present = self.edge_score() > edge_threshold
+        score = self.edge_score()
+        if self.previous_match is not None:
+            score = score * edge_adaptation + self.previous_match.edge_score() * (1 - edge_adaptation)
+        self.is_present = score > edge_threshold
         if not self.is_present:
             self.color = self.color_palette[BlobClass.FAKE]
         return self.is_present

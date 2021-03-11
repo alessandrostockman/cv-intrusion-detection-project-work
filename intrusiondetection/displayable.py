@@ -79,7 +79,7 @@ class Frame(Displayable):
     def intrusion_detection(self, params, bg, previous_blobs):
         self.apply_change_detection(bg, params.threshold, params.distance)
         self.apply_morphology_operators(params.morph_ops)
-        self.apply_blob_analysis(previous_blobs, params.similarity_threshold, params.classification_threshold, params.edge_threshold)
+        self.apply_blob_analysis(previous_blobs, params.similarity_threshold, params.classification_threshold, params.edge_threshold, params.edge_adaptation)
         #self.apply_blob_labeling()
         #self.apply_blob_remapping(previous_blobs, params.similarity_threshold)
         #self.apply_classification(params.classification_threshold)
@@ -103,11 +103,11 @@ class Frame(Displayable):
             setattr(self, 'mask_'+str(i), mask)
             i += 1
 
-    def apply_blob_analysis(self, previous_blobs, similarity_threshold, classification_threshold, edge_threshold):
+    def apply_blob_analysis(self, previous_blobs, similarity_threshold, classification_threshold, edge_threshold, edge_adaptation):
         self.apply_blob_labeling()
         self.apply_blob_remapping(previous_blobs, similarity_threshold)
         self.apply_classification(classification_threshold)
-        self.apply_object_recognition(edge_threshold)
+        self.apply_object_recognition(edge_threshold, edge_adaptation)
         self.generate_output()
 
     def apply_blob_labeling(self, colored_output=False):
@@ -151,10 +151,10 @@ class Frame(Displayable):
             blob_class = blob.classify(classification_threshold)
             blob.write_text(self.blobs_classified, str(blob_class) + " " + str(blob.classification_score()))
 
-    def apply_object_recognition(self, edge_threshold):
+    def apply_object_recognition(self, edge_threshold, edge_adaptation):
         self.blobs_detected = self.image.copy()
         for blob in self.blobs:
-            if blob.detect(edge_threshold):
+            if blob.detect(edge_threshold, edge_adaptation):
                 name = "True"
                 self.blobs_detected = np.where(blob.mask > 0, 255, self.blobs_detected)
             else:
