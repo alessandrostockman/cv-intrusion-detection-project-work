@@ -44,13 +44,10 @@ class MorphOpsSet:
         '''
             multiple iterations of closing or opening means that we apply n°iterations-times of Dilate + n°iterations-times of Erosion or vice-versa
         '''
-        masks = [] #TODO Remove
         for op in self.get():
             kernel_x, kernel_y = op.kernel.shape
             mask=cv2.copyMakeBorder(mask, kernel_y, kernel_y, kernel_x, kernel_x,
                 borderType=cv2.BORDER_CONSTANT, value=0)
             mask = cv2.morphologyEx(mask, op.operation_type, op.kernel, iterations=op.iterations)
             mask = mask[kernel_y:-kernel_y, kernel_x:-kernel_x]
-
-            masks.append(mask)
-        return mask, masks
+        return mask

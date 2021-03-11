@@ -97,11 +97,7 @@ class Frame(Displayable):
         '''
             Computes the binary morphology on the raw mas and assigns it on the mask_refined of the class
         '''
-        self.mask_refined, m = morph_ops.apply(self.mask_raw)
-        i = 0
-        for mask in m:
-            setattr(self, 'mask_'+str(i), mask)
-            i += 1
+        self.mask_refined = morph_ops.apply(self.mask_raw)
 
     def apply_blob_analysis(self, previous_blobs, similarity_threshold, classification_threshold, edge_threshold, edge_adaptation):
         self.apply_blob_labeling()
@@ -237,9 +233,7 @@ class Background(Displayable):
         '''
         self.subtraction = self.subtract_frame(frame.image, distance).astype(np.uint8)
         self.mask_raw = np.where(self.subtraction > threshold, 255, 0).astype(np.uint8)
-        self.mask_refined, m = morph_ops.apply(self.mask_raw)
-        for i, mask in enumerate(m):
-            setattr(self, 'mask_'+str(i), mask)
+        self.mask_refined = morph_ops.apply(self.mask_raw)
         
         self.blind = self.update_blind(frame, alpha)
         return np.where(self.mask_refined == 0, self.blind, self.image).astype(np.uint8)
