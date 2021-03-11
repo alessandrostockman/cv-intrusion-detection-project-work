@@ -114,15 +114,16 @@ class Blob:
                 [-1, 0, 1],
             ]))
 
-            #TODO Check what happens in the edges of the video
+            counter_pixels = 0
             for coord in self.main_contours:
                 y, x = coord[0][0], coord[0][1]
 
                 window = self.frame[x-1:x+2,y-1:y+2]
                 if window.shape == (3, 3):
+                    counter_pixels += 1
                     val += np.maximum(abs((window * mat_x).sum()), abs((mat_y * window).sum()))
                 
-            self.__es = val / len(self.main_contours)
+            self.__es = val / counter_pixels
             
             if self.previous_match is not None:
                 self.__es = self.__es * edge_adaptation + self.previous_match.edge_score() * (1 - edge_adaptation)

@@ -43,6 +43,7 @@ param_bag = ParameterList({
     "edge_adaptation": 0.1
 })
 
+#TODO Check the pixel shift
 for params in param_bag:
     initial_background = Background(
         input_video_path=params.input_video, 
