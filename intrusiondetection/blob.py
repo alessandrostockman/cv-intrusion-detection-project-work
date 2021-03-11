@@ -94,7 +94,7 @@ class Blob:
         barycenter_dist_norm = barycenter_dist / self.__frame_diag
         return round((1 - ((area_diff_norm + barycenter_dist_norm) / 2)) * 100)
 
-    def classification_score(self):
+    def classification_score(self): #TODO Normalize
         if self.__cs == None:
             self.__cs = round(self.area)
         return self.__cs

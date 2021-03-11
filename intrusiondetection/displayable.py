@@ -20,7 +20,7 @@ class Displayable:
                 plt.title(image_dict['title'])
 
             if img.shape[-1] == 3:
-                plt.imshow(img)
+                plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
             else:
                 plt.imshow(img, cmap='gray', vmin=0, vmax=255)
 
@@ -45,7 +45,7 @@ class Displayable:
             plt.title(title)
 
         if img.shape[-1] == 3:
-            plt.imshow(img)
+                plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
         else:
             plt.imshow(img, cmap='gray', vmin=0, vmax=255)
         if show:
