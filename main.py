@@ -39,7 +39,7 @@ param_bag = ParameterList({
     ],
     "similarity_threshold": 5000,
     "classification_threshold": 2000,
-    "edge_threshold": 110,
+    "edge_threshold": 95,
 })
 
 for params in param_bag:
