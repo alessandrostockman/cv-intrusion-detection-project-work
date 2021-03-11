@@ -44,9 +44,6 @@ class Blob:
 
     def compute_features(self):
         moments = cv2.moments(self.main_contours)
-        if moments['m00'] == 0: #TODO Remove
-            moments['m00'] = 1
-            print("ERR")
 
         self.perimeter = cv2.arcLength(self.main_contours, True)
         self.area = moments['m00']
