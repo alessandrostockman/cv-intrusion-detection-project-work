@@ -19,35 +19,34 @@ class Blob:
     ]
 
     def __init__(self, label, mask, original_frame):
+        self.id = None
+        self.previous_match = None
         self.label = label
         self.contours = self.parse_contours(mask)
-        self.main_contours = self.contours[0]
         self.mask = mask
-        self.frame = original_frame
-
-        self.id = None
-        self.compute_features()
 
         self.__cs = None
         self.__es = None
+        self.__main_contours = self.contours[0]
+        self.__frame = original_frame
         self.__frame_height, self.__frame_width = self.mask.shape
         self.__frame_pixels = self.__frame_width * self.__frame_height
         self.__frame_diag = math.sqrt(self.__frame_width ** 2 + self.__frame_height ** 2)
+        self.__blob_class = None
+        self.__is_present = True
         
-        self.blob_class = None
-        self.is_present = True
-        self.previous_match = None
+        self.compute_features()
 
     def compute_features(self):
-        moments = cv2.moments(self.main_contours)
+        moments = cv2.moments(self.__main_contours)
 
-        self.perimeter = round(cv2.arcLength(self.main_contours, True), 2)
+        self.perimeter = round(cv2.arcLength(self.__main_contours, True), 2)
         self.area = round(moments['m00'], 2)
         self.cx = int(moments['m10'] / self.area)
         self.cy = int(moments['m01'] / self.area)
 
     def attributes(self):
-        return [self.id, self.area, self.perimeter, self.cx, self.cy, self.__cs, self.__es, self.is_present, self.blob_class]
+        return [self.id, self.area, self.perimeter, self.cx, self.cy, self.__cs, self.__es, self.__is_present, self.__blob_class]
 
     def parse_contours(self, image):
         ret = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -110,10 +109,10 @@ class Blob:
             ]))
 
             counter_pixels = 0
-            for coord in self.main_contours:
+            for coord in self.__main_contours:
                 y, x = coord[0][0], coord[0][1]
 
-                window = self.frame[x-1:x+2,y-1:y+2]
+                window = self.__frame[x-1:x+2,y-1:y+2]
                 if window.shape == (3, 3):
                     counter_pixels += 1
                     val += np.maximum(abs((window * mat_x).sum()), abs((mat_y * window).sum()))
@@ -128,16 +127,16 @@ class Blob:
 
     def classify(self, classification_threshold):
         #Distinguish wether a blob is a person or an object in base of the are of his blob 
-        self.blob_class = BlobClass.PERSON if self.classification_score() > classification_threshold else BlobClass.OBJECT
-        self.color = self.color_palette[self.color_map[self.blob_class]]
-        return self.blob_class
+        self.__blob_class = BlobClass.PERSON if self.classification_score() > classification_threshold else BlobClass.OBJECT
+        self.color = self.color_palette[self.color_map[self.__blob_class]]
+        return self.__blob_class
 
     def detect(self, edge_threshold, edge_adaptation):
         #detecting true blob from fake one in base of the gradient of the value of the edge
-        self.is_present = self.edge_score(edge_adaptation=edge_adaptation) > edge_threshold
-        if not self.is_present:
+        self.__is_present = self.edge_score(edge_adaptation=edge_adaptation) > edge_threshold
+        if not self.__is_present:
             self.color = self.color_palette[self.color_map[BlobClass.FAKE]]
-        return self.is_present
+        return self.__is_present
 
     def write_text(self, image, text, scale=.5, thickness=1):
         font = cv2.FONT_HERSHEY_SIMPLEX

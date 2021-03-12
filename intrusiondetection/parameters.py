@@ -17,10 +17,10 @@ class ParameterList:
 
         tuning_params = {key: [val] if not isinstance(val, list) else val if len(val) > 0 else [None] for key, val in params.items() if key in tuning_keys}
 
-        self.items = (ParameterSet(global_params, dict(zip(tuning_params, x))) for x in itertools.product(*tuning_params.values()))
+        self.__items = (ParameterSet(global_params, dict(zip(tuning_params, x))) for x in itertools.product(*tuning_params.values()))
 
     def __iter__(self):
-        return self.items
+        return self.__items
 
 class ParameterSet:
 

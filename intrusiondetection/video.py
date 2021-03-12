@@ -11,20 +11,20 @@ class Video:
     Class Video defining the video that will be written in output
     '''
     def __init__(self, input_video_path):
-        self.frame_index = 0
         self.frames = []
         self.backgrounds = []
-        self.cap = cv2.VideoCapture(input_video_path)
+        self.__frame_index = 0
+        self.__cap = cv2.VideoCapture(input_video_path)
 
-        self.w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        self.fps = self.cap.get(cv2.CAP_PROP_FPS)
+        self.__w = int(self.__cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self.__h = int(self.__cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        self.__fps = self.__cap.get(cv2.CAP_PROP_FPS)
 
         self.load_video()
         
     def load_video(self):
-        while self.cap.isOpened():
-            ret, frame_image = self.cap.read()
+        while self.__cap.isOpened():
+            ret, frame_image = self.__cap.read()
             if not ret or frame_image is None:
                 break
 
@@ -60,8 +60,8 @@ class Video:
         Modifies the output to write them on the output stream.
         '''
 
-        self.outputs = {output_type: {
-            key: self.create_output_stream(self.w, self.h, self.fps, str(params) + "_" + output_type + "_" + key + ".avi") for key in outputs
+        self.__outputs = {output_type: {
+            key: self.create_output_stream(self.__w, self.__h, self.__fps, str(params) + "_" + output_type + "_" + key + ".avi") for key in outputs
         } for output_type, outputs in params.output_streams.items()}
 
         try:
@@ -80,7 +80,7 @@ class Video:
 
                 fr.intrusion_detection(params, bg, prev_blobs)
 
-                for output_type, outputs in self.outputs.items():
+                for output_type, outputs in self.__outputs.items():
                     obj = fr if output_type == 'foreground' else prev_bg
                     for key, out in outputs.items():
                         output_image = getattr(obj, key, None)
@@ -92,8 +92,8 @@ class Video:
                                 output_image = output_image.astype(np.uint8)                        
                             out.write(output_image)
 
-                fr.write_text_output(csv_writer, frame_index=self.frame_index)
-                self.frame_index += 1
+                fr.write_text_output(csv_writer, frame_index=self.__frame_index)
+                self.__frame_index += 1
                 prev_fr = fr
                 prev_bg = bg
         finally:

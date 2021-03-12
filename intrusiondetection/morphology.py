@@ -8,8 +8,8 @@ class MorphOp:
     '''
     def __init__(self, operation_type, kernel_size, kernel_shape=None, iterations=1):
         self.operation_type = operation_type
-        self.kernel_size = kernel_size
         self.iterations = iterations
+        self.__kernel_size = kernel_size
         if kernel_shape is None:
             self.kernel = np.ones(kernel_size, dtype=np.uint8)
         else:
@@ -26,19 +26,19 @@ class MorphOp:
         elif self.operation_type == cv2.MORPH_ERODE:
             name += "E"
 
-        x, y = self.kernel_size
+        x, y = self.__kernel_size
         name += str(x) + "x" + str(y)
         return name
         
 class MorphOpsSet:
     def __init__(self, *ops):
-        self.ops = ops
+        self.__ops = ops
 
     def __str__(self):
-        return "".join(str(x) for x in self.ops)
+        return "".join(str(x) for x in self.__ops)
 
     def get(self):
-        return self.ops
+        return self.__ops
 
     def apply(self, mask):
         '''
