@@ -5,7 +5,6 @@ import cv2
 from matplotlib import pyplot as plt
 
 from intrusiondetection.blob import Blob
-from intrusiondetection.utility import hue_to_rgb
 
 class Displayable:
 
@@ -79,12 +78,7 @@ class Frame(Displayable):
     def intrusion_detection(self, params, bg, previous_blobs):
         self.apply_change_detection(bg, params.threshold, params.distance)
         self.apply_morphology_operators(params.morph_ops)
-        self.apply_blob_analysis(previous_blobs, params.similarity_threshold, params.classification_threshold, params.edge_threshold, params.edge_adaptation)
-        #self.apply_blob_labeling()
-        #self.apply_blob_remapping(previous_blobs, params.similarity_threshold)
-        #self.apply_classification(params.classification_threshold)
-        #self.apply_object_recognition(params.edge_threshold)
-        #self.generate_output()
+        self.apply_blob_analysis(previous_blobs, params)
     
     def apply_change_detection(self, background, threshold, distance):
         '''
@@ -95,15 +89,15 @@ class Frame(Displayable):
 
     def apply_morphology_operators(self, morph_ops):
         '''
-            Computes the binary morphology on the raw mas and assigns it on the mask_refined of the class
+            Computes the binary morphology on the raw mask and assigns it on the mask_refined of the class
         '''
         self.mask_refined = morph_ops.apply(self.mask_raw)
 
-    def apply_blob_analysis(self, previous_blobs, similarity_threshold, classification_threshold, edge_threshold, edge_adaptation):
+    def apply_blob_analysis(self, previous_blobs, params):
         self.apply_blob_labeling()
-        self.apply_blob_remapping(previous_blobs, similarity_threshold)
-        self.apply_classification(classification_threshold)
-        self.apply_object_recognition(edge_threshold, edge_adaptation)
+        self.apply_blob_remapping(previous_blobs, params.similarity_threshold)
+        self.apply_classification(params.classification_threshold)
+        self.apply_object_recognition(params.edge_threshold, params.edge_adaptation)
         self.generate_output()
 
     def apply_blob_labeling(self, colored_output=False):
@@ -117,8 +111,7 @@ class Frame(Displayable):
                 blob = Blob(curr_label, blob_mask, self.image)
                 blob.label = curr_label
                 self.blobs.append(blob)
-
-                self.image_blobs[blob_mask > 0] = hue_to_rgb(curr_label * 179 / (num_labels - 1))
+                self.blobs_labeled[blob_mask > 0] = blob.color_palette[curr_label]
                 blob.write_text(self.blobs_labeled, str(blob.label))
 
     def apply_blob_remapping(self, previous_blobs, similarity_threshold):
@@ -139,23 +132,23 @@ class Frame(Displayable):
                 matched_id = matched_blob.id
                 
             blob.id = matched_id
+            self.blobs_remapped[blob.mask > 0] = blob.color_palette[blob.id]
             blob.write_text(self.blobs_remapped, str(blob.id))
 
     def apply_classification(self, classification_threshold):
         self.blobs_classified = self.image_blobs.copy()
         for blob in self.blobs:
             blob_class = blob.classify(classification_threshold)
-            blob.write_text(self.blobs_classified, str(blob_class) + " " + str(blob.classification_score()))
+            blob.write_text(self.blobs_classified, str(blob_class))
 
     def apply_object_recognition(self, edge_threshold, edge_adaptation):
-        self.blobs_detected = self.image.copy()
+        self.blobs_detected = self.image_blobs.copy()
         for blob in self.blobs:
             if blob.detect(edge_threshold, edge_adaptation):
-                name = "True"
-                self.blobs_detected = np.where(blob.mask > 0, 255, self.blobs_detected)
+                color = (0, 255, 0)
             else:
-                name = "False"
-            blob.write_text(self.blobs_detected, name+" " + str(blob.edge_score()))
+                color = (0, 0, 255)
+            self.blobs_detected[blob.mask > 0] = color
         return
 
         self.blobs_detected = self.image_blobs.copy()
@@ -169,7 +162,6 @@ class Frame(Displayable):
     def generate_output(self):
         for blob in self.blobs:
             cv2.drawContours(self.image_output, blob.contours, -1, blob.color, 1)
-            #blob_frame[blob.mask > 0] = blob.color
 
     def write_text_output(self, csv_writer, frame_index):
         csv_writer.writerow([frame_index, len(self.blobs)])
