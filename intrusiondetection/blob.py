@@ -5,15 +5,18 @@ import numpy as np
 import cv2
 
 from intrusiondetection.enum import BlobClass
-from intrusiondetection.utility import hue_to_rgb
 
 class Blob:
 
-    color_palette = { 
-        BlobClass.OBJECT: (255, 0, 0),
-        BlobClass.PERSON: (0, 255, 0),
-        BlobClass.FAKE: (0, 0, 255),
+    color_map = { 
+        BlobClass.OBJECT: 6, #(255, 0, 0),
+        BlobClass.PERSON: 7, #(0, 255, 0),
+        BlobClass.FAKE: 8, #(0, 0, 255),
     }
+
+    color_palette = [
+        (128, 0, 0), (0, 128, 0), (0, 0, 128), (255, 255, 0), (0, 255, 255), (255, 0, 255), (255, 0, 0), (0, 255, 0), (0, 0, 255),
+    ]
 
     def __init__(self, label, mask, original_frame):
         self.label = label
@@ -35,24 +38,16 @@ class Blob:
         self.is_present = True
         self.previous_match = None
 
-    def __str__(self):
-        name = ""
-        if self.is_present:
-            name = str(self.blob_class)
-        else:
-            name = "FAKE"
-        return str(self.classification_score()) + " " + name
-
     def compute_features(self):
         moments = cv2.moments(self.main_contours)
 
-        self.perimeter = cv2.arcLength(self.main_contours, True)
-        self.area = moments['m00']
-        self.cx = int(moments['m10']/self.area)
-        self.cy = int(moments['m01']/self.area)
+        self.perimeter = round(cv2.arcLength(self.main_contours, True), 2)
+        self.area = round(moments['m00'], 2)
+        self.cx = int(moments['m10'] / self.area)
+        self.cy = int(moments['m01'] / self.area)
 
     def attributes(self):
-        return [self.id, self.area, self.perimeter, self.blob_class]
+        return [self.id, self.area, self.perimeter, self.cx, self.cy, self.__cs, self.__es, self.is_present, self.blob_class]
 
     def parse_contours(self, image):
         ret = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -134,14 +129,14 @@ class Blob:
     def classify(self, classification_threshold):
         #Distinguish wether a blob is a person or an object in base of the are of his blob 
         self.blob_class = BlobClass.PERSON if self.classification_score() > classification_threshold else BlobClass.OBJECT
-        self.color = self.color_palette[self.blob_class]
+        self.color = self.color_palette[self.color_map[self.blob_class]]
         return self.blob_class
 
     def detect(self, edge_threshold, edge_adaptation):
         #detecting true blob from fake one in base of the gradient of the value of the edge
         self.is_present = self.edge_score(edge_adaptation=edge_adaptation) > edge_threshold
         if not self.is_present:
-            self.color = self.color_palette[BlobClass.FAKE]
+            self.color = self.color_palette[self.color_map[BlobClass.FAKE]]
         return self.is_present
 
     def write_text(self, image, text, scale=.5, thickness=1):
