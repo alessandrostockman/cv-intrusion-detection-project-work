@@ -2,6 +2,9 @@ import numpy as np
 from matplotlib import pyplot as plt
 import cv2
 
+from intrusiondetection.parameters import ParameterSet
+from intrusiondetection.morphology import MorphOp, MorphOpsSet
+
 # Distance Functions
 
 def distance_manhattan(img1, img2):
@@ -26,5 +29,31 @@ def subplot_images(image_dicts):
         #plt.imshow(img, cmap='gray', vmin=0, vmax=255)
 
 
-def hue_to_rgb(hue):
-    return tuple(cv2.cvtColor(np.array([[[hue, 255, 255]]], dtype=np.uint8), cv2.COLOR_HSV2RGB)[0,0])
+def default_parameters():
+    return ParameterSet({
+        "input_video": "rilevamento-intrusioni-video.avi",
+        "output_directory": "output",
+        "output_streams": []
+    }, {
+        "initial_background_frames": 80,
+        "initial_background_interpolation": np.median,
+        "background_alpha": 0.3,
+        "background_threshold": 30,
+        "background_distance": distance_euclidean,
+        "background_morph_ops": MorphOpsSet(
+            MorphOp(cv2.MORPH_OPEN, (3,3)), 
+            MorphOp(cv2.MORPH_CLOSE, (50,50), cv2.MORPH_ELLIPSE), 
+            MorphOp(cv2.MORPH_DILATE, (15,15), cv2.MORPH_ELLIPSE)
+        ),
+        "threshold": 15,
+        "distance": distance_euclidean,
+        "morph_ops": MorphOpsSet(
+            MorphOp(cv2.MORPH_OPEN, (3,3)),
+            MorphOp(cv2.MORPH_CLOSE, (50, 50), cv2.MORPH_ELLIPSE),
+            MorphOp(cv2.MORPH_OPEN, (10,10), cv2.MORPH_ELLIPSE),
+        ),
+        "similarity_threshold": 80,
+        "classification_threshold": 2.6,
+        "edge_threshold": 92,
+        "edge_adaptation": 0.1
+    })
