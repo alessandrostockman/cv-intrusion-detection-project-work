@@ -11,10 +11,10 @@ param_bag = ParameterList({
     "input_video": "rilevamento-intrusioni-video.avi",
     "output_directory": "output",
     "output_streams": {
-        'foreground': ['image_output', 'blobs_detected', 'blobs_classified', 'image_blobs', 'blobs_remapped', 'blobs_labeled', 'mask_refined', 'subtraction', 'mask_raw', 'mask_refined',],
-        #'foreground': ['subtraction', 'mask_raw', 'mask_0', 'mask_1', 'mask_2'],
-        #'background': ['blind', 'subtraction', 'mask_raw', 'mask_0', 'mask_1', 'mask_2']
-        'background': ['subtraction', 'mask_raw', 'mask_refined', 'image', 'blind']
+        #'foreground': ['image_output', 'blobs_detected', 'blobs_classified', 'image_blobs', 'blobs_remapped', 'blobs_labeled', 'mask_refined', 'subtraction', 'mask_raw', 'mask_refined',],
+        #'background': ['subtraction', 'mask_raw', 'mask_refined', 'image', 'blind']
+        'foreground': ['image_output'],
+        'background': []
     },
     "initial_background_frames": [80],
     "initial_background_interpolation": [np.median],
@@ -43,7 +43,6 @@ param_bag = ParameterList({
     "edge_adaptation": 0.1
 })
 
-#TODO Check the pixel shift
 for params in param_bag:
     initial_background = Background(
         input_video_path=params.input_video, 
