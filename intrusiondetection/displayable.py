@@ -95,13 +95,13 @@ class Frame(Displayable):
         '''
             Shorthand for performing the various blob analysis tasks
         '''
-        self.apply_blob_labeling()
-        self.apply_blob_remapping(previous_blobs, params.similarity_threshold)
-        self.apply_classification(params.classification_threshold)
-        self.apply_object_recognition(params.edge_threshold, params.edge_adaptation)
+        self.apply_blob_labeling(create_output='blobs_labeled' in params.output_streams['foreground'])
+        self.apply_blob_remapping(previous_blobs, params.similarity_threshold, create_output='blobs_remapped' in params.output_streams['foreground'])
+        self.apply_classification(params.classification_threshold, create_output='blobs_classified' in params.output_streams['foreground'])
+        self.apply_object_recognition(params.edge_threshold, params.edge_adaptation, create_output='blobs_detected' in params.output_streams['foreground'])
         self.generate_graphical_output()
 
-    def apply_blob_labeling(self):
+    def apply_blob_labeling(self, create_output=False):
         '''
             Creates a Blob object for every blob found using OpenCV's connectedComponents function
         '''
@@ -115,11 +115,11 @@ class Frame(Displayable):
                 blob = Blob(curr_label, blob_mask, self.image)
                 self.blobs.append(blob)
 
-                #TODO: Optional output
-                self.blobs_labeled[blob_mask > 0] = blob.color_palette[curr_label]
-                blob.write_text(self.blobs_labeled, str(blob.label))
+                if create_output:
+                    self.blobs_labeled[blob_mask > 0] = blob.color_palette[curr_label]
+                    blob.write_text(self.blobs_labeled, str(blob.label))
 
-    def apply_blob_remapping(self, previous_blobs, similarity_threshold):
+    def apply_blob_remapping(self, previous_blobs, similarity_threshold, create_output=False):
         '''
             Generates an ID for every blob searching for correspondences in the previous_blobs list by computing a similarity score
         '''
@@ -141,11 +141,11 @@ class Frame(Displayable):
                 
             blob.id = matched_id
 
-            #TODO: Optional output
-            self.blobs_remapped[blob.mask > 0] = blob.color_palette[blob.id]
-            blob.write_text(self.blobs_remapped, str(blob.id))
+            if create_output:
+                self.blobs_remapped[blob.mask > 0] = blob.color_palette[blob.id]
+                blob.write_text(self.blobs_remapped, str(blob.id))
 
-    def apply_classification(self, classification_threshold):
+    def apply_classification(self, classification_threshold, create_output=False):
         '''
             Computes a classification score for each blob and assign them either a PERSON or OBJECT class
         '''
@@ -153,10 +153,10 @@ class Frame(Displayable):
         for blob in self.blobs:
             blob_class = blob.classify(classification_threshold)
 
-            #TODO: Optional output
-            blob.write_text(self.blobs_classified, str(blob_class))
+            if create_output:
+                blob.write_text(self.blobs_classified, str(blob_class))
 
-    def apply_object_recognition(self, edge_threshold, edge_adaptation):
+    def apply_object_recognition(self, edge_threshold, edge_adaptation, create_output=False):
         '''
             Computes an edge score for each blob and determines whether the object is actually present or corresponds to the absence of an object in the background
         '''
@@ -164,12 +164,12 @@ class Frame(Displayable):
         for blob in self.blobs:
             presence = blob.detect(edge_threshold, edge_adaptation)
             
-            #TODO: Optional output
-            if presence:
-                color = (0, 255, 0)
-            else:
-                color = (0, 0, 255)
-            self.blobs_detected[blob.mask > 0] = color
+            if create_output:
+                if presence:
+                    color = (0, 255, 0)
+                else:
+                    color = (0, 0, 255)
+                self.blobs_detected[blob.mask > 0] = color
 
     def generate_graphical_output(self):
         '''
