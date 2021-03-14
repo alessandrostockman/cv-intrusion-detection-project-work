@@ -175,25 +175,21 @@ class Background(Displayable):
 
     def __init__(self, input_video_path=None, interpolation=None, frames_n=None, image=None):
         '''
-            Estimates the background of the given video capture by using the interpolation function and n frames
-            Returning a matrix of float64
+            Initiziales the background image either by using a video source and an interpolation method or by assigning directly an image 
         '''
         self.subtraction = None
         self.mask_raw = None
         self.mask_refined = None
         self.blind = None
 
-        if input_video_path is not None:
-            # Loading Video
+        if input_video_path is not None and interpolation is not None and frames_n is not None:
+            # The background image is computed using the interpolation function over the first frames_n number of frames of the given video
             cap = cv2.VideoCapture(input_video_path)
             bg = []
             idx = 0
-            # Initialize the background image
             while(cap.isOpened() and idx < frames_n):
                 ret, frame = cap.read()
                 if ret and not frame is None:
-                    # frame = frame.astype(float)
-                    # Getting all first n images
                     bg.append(frame[:,:,0])
                     idx += 1
                 else:
@@ -215,13 +211,13 @@ class Background(Displayable):
 
     def update_blind(self, frame, alpha):
         '''
-            Method that conmputes the background via blind updating
+            Returns the blending of the background image and the given frame weighted by the adaptation rate alpha
         '''
         return (self.image * (1 - alpha) + frame.image * alpha).astype(np.uint8)
 
     def update_selective(self, frame, threshold, distance, alpha, morph_ops):
         '''
-            Method that computes the background via selective updating
+            Returns the blending of the background image and the given frame weighted by the adaptation rate alpha selectively on background pixels
         '''
         self.subtraction = self.subtract_frame(frame.image, distance).astype(np.uint8)
         self.mask_raw = np.where(self.subtraction > threshold, 255, 0).astype(np.uint8)
@@ -232,6 +228,6 @@ class Background(Displayable):
         
     def subtract_frame(self, frame, distance):
         '''
-            Computes the Background subtraction (distance(frame,background)) and returns a matrix of boolean
+            Returns the background subtraction using the given distance function
         '''
         return distance(frame, self.image)
