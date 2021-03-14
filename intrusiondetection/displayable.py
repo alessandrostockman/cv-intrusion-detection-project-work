@@ -9,6 +9,9 @@ from intrusiondetection.blob import Blob
 class Displayable:
 
     def display_row(self, image_dicts):
+        '''
+            Auxiliary method for displaying a set of images by a lsit of attribute names
+        '''
         plt.figure(figsize=(20, 10))
 
         for index, image_dict in enumerate(image_dicts):
@@ -25,16 +28,9 @@ class Displayable:
 
 
     def display(self, keys, title=None, show=True):
-        '''if isinstance(keys, list):
-            if show:
-                plt.figure(figsize=(20, 10))
-
-            for index, key in enumerate(keys):
-                plt.subplot(1, len(keys), index+1)
-                img = getattr(self, key)
-                plt.axis('off')
-                plt.imshow(img, cmap='gray', vmin=0, vmax=255)
-        else:'''
+        '''
+            Auxiliary method for displaying the image by attribute name
+        '''
         if show:
             plt.figure(figsize=(6.4, 4.8))
 
@@ -62,7 +58,6 @@ class Frame(Displayable):
     def __init__(self, image):
         self.image = image[:,:,0]
         self.image_triple_channel = image
-        self.image_blobs = self.image_triple_channel.copy()
         self.image_output = self.image_triple_channel.copy()
         
         self.subtraction = None
@@ -111,7 +106,7 @@ class Frame(Displayable):
             Creates a Blob object for every blob found using OpenCV's connectedComponents function
         '''
         num_labels, labels = cv2.connectedComponents(self.mask_refined)
-        self.blobs_labeled = self.image_blobs.copy()
+        self.blobs_labeled = self.image_triple_channel.copy()
 
         if num_labels > 1:
             # There is at least one blob detected
@@ -129,7 +124,7 @@ class Frame(Displayable):
             Generates an ID for every blob searching for correspondences in the previous_blobs list by computing a similarity score
         '''
         candidate_blobs = copy(previous_blobs)
-        self.blobs_remapped = self.image_blobs.copy()
+        self.blobs_remapped = self.image_triple_channel.copy()
         
         new_ids = 0
         for blob in self.blobs:
@@ -154,7 +149,7 @@ class Frame(Displayable):
         '''
             Computes a classification score for each blob and assign them either a PERSON or OBJECT class
         '''
-        self.blobs_classified = self.image_blobs.copy()
+        self.blobs_classified = self.image_triple_channel.copy()
         for blob in self.blobs:
             blob_class = blob.classify(classification_threshold)
 
@@ -165,7 +160,7 @@ class Frame(Displayable):
         '''
             Computes an edge score for each blob and determines whether the object is actually present or corresponds to the absence of an object in the background
         '''
-        self.blobs_detected = self.image_blobs.copy()
+        self.blobs_detected = self.image_triple_channel.copy()
         for blob in self.blobs:
             presence = blob.detect(edge_threshold, edge_adaptation)
             
