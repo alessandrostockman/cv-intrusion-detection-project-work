@@ -92,7 +92,7 @@ class Video:
                                 output_image = output_image.astype(np.uint8)                        
                             out.write(output_image)
 
-                fr.write_text_output(csv_writer, frame_index=self.__frame_index)
+                fr.generate_text_output(csv_writer, frame_index=self.__frame_index)
                 self.__frame_index += 1
                 prev_fr = fr
                 prev_bg = bg

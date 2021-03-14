@@ -34,7 +34,13 @@ def default_parameters():
     return ParameterSet({
         "input_video": "rilevamento-intrusioni-video.avi",
         "output_directory": "output",
-        "output_streams": []
+        "output_streams": {
+            #'foreground': ['image_output', 'blobs_detected', 'blobs_classified', 'image_blobs', 'blobs_remapped', 'blobs_labeled', 'mask_refined', 'subtraction', 'mask_raw', 'mask_refined',],
+            #'background': ['subtraction', 'mask_raw', 'mask_refined', 'image', 'blind']
+            'foreground': ['image_output'],
+            'background': []
+        }
+
     }, {
         "initial_background_frames": 80,
         "initial_background_interpolation": np.median,

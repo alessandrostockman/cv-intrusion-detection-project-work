@@ -167,10 +167,10 @@ class Frame(Displayable):
         '''
         self.blobs_detected = self.image_blobs.copy()
         for blob in self.blobs:
-            presence = blob.detect(edge_threshold, edge_adaptation):
+            presence = blob.detect(edge_threshold, edge_adaptation)
             
             #TODO: Optional output
-            if presence
+            if presence:
                 color = (0, 255, 0)
             else:
                 color = (0, 0, 255)
