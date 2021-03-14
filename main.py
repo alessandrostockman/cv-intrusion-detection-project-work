@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import cv2
 
@@ -5,7 +6,6 @@ from intrusiondetection.parameters import ParameterList
 from intrusiondetection.video import Video
 from intrusiondetection.displayable import Background
 from intrusiondetection.utility import default_parameters
-import time
 
 def execute_intrusion_detection():
     params = default_parameters()
@@ -21,4 +21,4 @@ def execute_intrusion_detection():
 if __name__ == "__main__":
     start_time = time.time()
     execute_intrusion_detection()
-    print("Computation finished in {} seconds".format(time.time() - start_time))
+    print("Computation finished in {} seconds".format(round(time.time() - start_time, 4)))
