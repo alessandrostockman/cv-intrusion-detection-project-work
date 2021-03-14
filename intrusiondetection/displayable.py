@@ -76,6 +76,9 @@ class Frame(Displayable):
         self.blobs = []
 
     def intrusion_detection(self, params, bg, previous_blobs):
+        '''
+            Performs the whole intrusion detection algorithm and computes the outputs
+        '''
         self.apply_change_detection(bg, params.threshold, params.distance)
         self.apply_morphology_operators(params.morph_ops)
         self.apply_blob_analysis(previous_blobs, params)
@@ -89,32 +92,42 @@ class Frame(Displayable):
 
     def apply_morphology_operators(self, morph_ops):
         '''
-            Computes the binary morphology on the raw mask and assigns it on the mask_refined of the class
+            Applies binary morphology operators to the raw mask
         '''
         self.mask_refined = morph_ops.apply(self.mask_raw)
 
     def apply_blob_analysis(self, previous_blobs, params):
+        '''
+            Shorthand for performing the various blob analysis tasks
+        '''
         self.apply_blob_labeling()
         self.apply_blob_remapping(previous_blobs, params.similarity_threshold)
         self.apply_classification(params.classification_threshold)
         self.apply_object_recognition(params.edge_threshold, params.edge_adaptation)
-        self.generate_output()
+        self.generate_graphical_output()
 
-    def apply_blob_labeling(self, colored_output=False):
+    def apply_blob_labeling(self):
+        '''
+            Creates a Blob object for every blob found using OpenCV's connectedComponents function
+        '''
         num_labels, labels = cv2.connectedComponents(self.mask_refined)
         self.blobs_labeled = self.image_blobs.copy()
 
-        #No blobs detected
         if num_labels > 1:
+            # There is at least one blob detected
             for curr_label in range(1, num_labels):
                 blob_mask = np.where(labels == curr_label, 255, 0).astype(np.uint8)
                 blob = Blob(curr_label, blob_mask, self.image)
-                blob.label = curr_label
                 self.blobs.append(blob)
+
+                #TODO: Optional output
                 self.blobs_labeled[blob_mask > 0] = blob.color_palette[curr_label]
                 blob.write_text(self.blobs_labeled, str(blob.label))
 
     def apply_blob_remapping(self, previous_blobs, similarity_threshold):
+        '''
+            Generates an ID for every blob searching for correspondences in the previous_blobs list by computing a similarity score
+        '''
         candidate_blobs = copy(previous_blobs)
         self.blobs_remapped = self.image_blobs.copy()
         
@@ -122,7 +135,7 @@ class Frame(Displayable):
         for blob in self.blobs:
             matched_blob = blob.search_matching_blob(candidate_blobs, similarity_threshold)
 
-            #if we canno't match the blob to a previous blob then it means that we need to associate a new label on the detected blob
+            # When no match is found a new identifier is assigned
             if matched_blob is None:
                 prev_ids_number = max([x.id for x in previous_blobs], default=0)
                 new_ids += 1
@@ -132,38 +145,48 @@ class Frame(Displayable):
                 matched_id = matched_blob.id
                 
             blob.id = matched_id
+
+            #TODO: Optional output
             self.blobs_remapped[blob.mask > 0] = blob.color_palette[blob.id]
             blob.write_text(self.blobs_remapped, str(blob.id))
 
     def apply_classification(self, classification_threshold):
+        '''
+            Computes a classification score for each blob and assign them either a PERSON or OBJECT class
+        '''
         self.blobs_classified = self.image_blobs.copy()
         for blob in self.blobs:
             blob_class = blob.classify(classification_threshold)
+
+            #TODO: Optional output
             blob.write_text(self.blobs_classified, str(blob_class))
 
     def apply_object_recognition(self, edge_threshold, edge_adaptation):
+        '''
+            Computes an edge score for each blob and determines whether the object is actually present or corresponds to the absence of an object in the background
+        '''
         self.blobs_detected = self.image_blobs.copy()
         for blob in self.blobs:
-            if blob.detect(edge_threshold, edge_adaptation):
+            presence = blob.detect(edge_threshold, edge_adaptation):
+            
+            #TODO: Optional output
+            if presence
                 color = (0, 255, 0)
             else:
                 color = (0, 0, 255)
             self.blobs_detected[blob.mask > 0] = color
-        return
 
-        self.blobs_detected = self.image_blobs.copy()
-        for blob in self.blobs:
-            if blob.detect(edge_threshold):
-                name = "True"
-            else:
-                name = "False"
-            blob.write_text(self.blobs_detected, name+" " + str(blob.edge_score()))
-
-    def generate_output(self):
+    def generate_graphical_output(self):
+        '''
+            Computes the final graphical output
+        '''
         for blob in self.blobs:
             cv2.drawContours(self.image_output, blob.contours, -1, blob.color, 1)
 
-    def write_text_output(self, csv_writer, frame_index):
+    def generate_text_output(self, csv_writer, frame_index):
+        '''
+            Computes the final text output
+        '''
         csv_writer.writerow([frame_index, len(self.blobs)])
         for blob in self.blobs:
             csv_writer.writerow(blob.attributes())
