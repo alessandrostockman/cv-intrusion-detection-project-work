@@ -6,6 +6,7 @@ class MorphOp:
     '''
         Class MorphOp that defines the morphology operation that will be applied
     '''
+
     def __init__(self, operation_type, kernel_size, kernel_shape=None, iterations=1):
         self.operation_type = operation_type
         self.iterations = iterations
@@ -42,7 +43,7 @@ class MorphOpsSet:
 
     def apply(self, mask):
         '''
-            multiple iterations of closing or opening means that we apply n°iterations-times of Dilate + n°iterations-times of Erosion or vice-versa
+           Applies the set of binary morhology operators to the given mask and returns the result 
         '''
         for op in self.get():
             kernel_x, kernel_y = op.kernel.shape

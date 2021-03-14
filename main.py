@@ -16,7 +16,7 @@ def execute_intrusion_detection():
     )
 
     video = Video(params.input_video)
-    video.intrusion_detection(params, initial_background)
+    video.intrusion_detection(params, initial_background, tuning=False)
 
 if __name__ == "__main__":
     start_time = time.time()

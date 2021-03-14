@@ -2,11 +2,13 @@ import itertools
 import numpy as np
 import cv2
 
-#from intrusiondetection.model import Background
-
 class ParameterList:
 
     def __init__(self, params):
+        '''
+            Creates a ParameterSet for every combination of given parameters
+        '''
+
         global_keys = {'input_video', 'output_directory', 'output_streams'}
         tuning_keys = {
             'initial_background_frames', 'initial_background_interpolation', 'background_threshold', 'background_distance', 'background_alpha', 
@@ -20,11 +22,17 @@ class ParameterList:
         self.__items = (ParameterSet(global_params, dict(zip(tuning_params, x))) for x in itertools.product(*tuning_params.values()))
 
     def __iter__(self):
+        '''
+            Iterates through the generated ParameterSet objects
+        '''
         return self.__items
 
 class ParameterSet:
 
     def __init__(self, global_params, tuning_params):
+        '''
+            Decodes the global and tuning parameters dictionaries
+        '''
         self.output_directory = global_params['output_directory']
         self.input_video = global_params['input_video']
         self.output_streams = global_params['output_streams']
@@ -43,22 +51,21 @@ class ParameterSet:
         self.edge_threshold = tuning_params['edge_threshold']
         self.edge_adaptation = tuning_params['edge_adaptation']
 
-        self.output_video = str(self) + ".avi"
-        self.output_text = str(self) + ".csv"
+        self.output_base_name = str(self)
 
 
     def __str__(self):
         '''
-        Returns a string representing uniquely the current set of parameters, used for generating the output files names
+            Returns a string representing uniquely the current set of parameters, used for generating the output files names for tuning purposes
         '''
-        
-        return "{}/tuning".format(self.output_directory)
-        return "{}/tuning_{}_{}_{}_{}_{}".format(
+        return "{}/tuning_{}_{}_{}_{}_{}_{}_{}".format(
             self.output_directory, 
-            self.background,
+            int(self.background_alpha * 100),
+            self.background_morph_ops,
+            self.background_threshold,
+            self.background_distance.__name__,
             self.threshold, 
             self.distance.__name__,
-            int(self.alpha * 100),
             self.morph_ops
         )
 

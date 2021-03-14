@@ -23,6 +23,9 @@ class Video:
         self.load_video()
         
     def load_video(self):
+        '''
+            Loads a list of frames for the current video
+        '''
         while self.__cap.isOpened():
             ret, frame_image = self.__cap.read()
             if not ret or frame_image is None:
@@ -32,7 +35,7 @@ class Video:
 
     def process_backgrounds(self, update_mode, initial_background, alpha, threshold=None, distance=None, morph_ops=None):
         """
-            Method used only for demonstration purposes
+            Method used only for demonstration purposes, returns a list of dynamic backgrounds for a given video either in BLIND or SELECTIVE update mode  
         """
         bg = initial_background
         backgrounds = [bg]
@@ -49,23 +52,18 @@ class Video:
             backgrounds.append(bg)
         return backgrounds
 
-    def intrusion_detection(self, params, initial_background):
+    def intrusion_detection(self, params, initial_background, tuning=False):
         '''
-        Method that computes the change detection:
-        Compuetes the background via selective update;
-        applies the change detection;
-        applies morphology;
-        applies blob analysis;
-        For every blob we write the classification of the blob. 
-        Modifies the output to write them on the output stream.
+            Application of the intrusion detection algorithm
         '''
 
+        outputs_base_name = params.output_base_name + "_" if tuning else params.output_directory + "/"
         self.__outputs = {output_type: {
-            key: self.create_output_stream(self.__w, self.__h, self.__fps, str(params) + "_" + output_type + "_" + key + ".avi") for key in outputs
+            key: self.create_output_stream(self.__w, self.__h, self.__fps, outputs_base_name + output_type + "_" + key + ".avi") for key in outputs
         } for output_type, outputs in params.output_streams.items()}
 
         try:
-            csv_file = open(params.output_text, mode='w')
+            csv_file = open(outputs_base_name + "text.csv", mode='w')
             csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             prev_fr = None
             prev_bg = initial_background
@@ -103,7 +101,6 @@ class Video:
         '''
             Creates a video writer reference for output_video_path
         '''
-        # Define the codec and create VideoWriter object
         fourcc = cv2.VideoWriter_fourcc(*'DIVX')
         out = cv2.VideoWriter(output_video_path, fourcc, fps, (w,  h))
 
