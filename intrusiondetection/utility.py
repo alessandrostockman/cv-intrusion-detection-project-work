@@ -1,6 +1,6 @@
 import numpy as np
-from matplotlib import pyplot as plt
 import cv2
+from matplotlib import pyplot as plt
 
 from intrusiondetection.parameters import ParameterSet
 from intrusiondetection.morphology import MorphOp, MorphOpsSet
@@ -17,17 +17,18 @@ def distance_euclidean(img1, img2):
     '''
     return (np.sqrt((img2.astype(float) - img1.astype(float)) ** 2)).astype(np.uint8)
 
+# Plotting Functions
+
 def subplot_images(image_dicts):
     plt.figure(figsize=(20, 10))
     for index, image_dict in enumerate(image_dicts):
-        #img = getattr(image_dict['object'], image_dict['key'])
         plt.subplot(1, len(image_dicts), index+1)
         plt.axis('off')
         if image_dict['title'] is None:
              image_dict['title'] = None
         image_dict['object'].display(image_dict['key'], title=image_dict['title'], show=False)
-        #plt.imshow(img, cmap='gray', vmin=0, vmax=255)
 
+# Parameter Utilities
 
 def default_parameters():
     return ParameterSet({
