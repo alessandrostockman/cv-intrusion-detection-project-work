@@ -1,6 +1,7 @@
 import csv
 import numpy as np
 import cv2
+import time
 
 from intrusiondetection.displayable import Frame, Background
 from intrusiondetection.enum import BackgroundMethod
@@ -67,8 +68,14 @@ class Video:
             prev_fr = None
             prev_bg = initial_background
             max_blob_id = 0
-            
+
+            if stats:
+                stats_data = {
+                    'times': [],
+                    'blobs': {}
+                }
             for fr in self.frames:
+                start_time = time.time()
                 prev_blobs = []
                 if prev_fr is not None:
                     prev_blobs = prev_fr.blobs
@@ -97,8 +104,22 @@ class Video:
                 self.__frame_index += 1
                 prev_fr = fr
                 prev_bg = bg
+                if stats:
+                    stats_data['times'].append(round((time.time() - start_time) * 1000, 4))
+                    for blob in fr.blobs:
+                        blob_data = stats_data['blobs'].get(blob.id, {
+                            'edge_scores': [],
+                            'classification_scores': [], 
+                        })
+
+                        blob_data['edge_scores'].append(blob.edge_score())
+                        blob_data['classification_scores'].append(blob.classification_score())
+                        stats_data['blobs'][blob.id] = blob_data
         finally:
             csv_file.close()
+
+        if stats:
+            return stats_data
     
     def create_output_stream(self, w, h, fps, output_video_path):
         '''
