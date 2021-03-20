@@ -69,13 +69,13 @@ class Frame(Displayable):
 
         self.blobs = []
 
-    def intrusion_detection(self, params, bg, previous_blobs):
+    def intrusion_detection(self, params, bg, previous_blobs, blob_base_id=0):
         '''
             Performs the whole intrusion detection algorithm and computes the outputs
         '''
         self.apply_change_detection(bg, params.threshold, params.distance)
         self.apply_morphology_operators(params.morph_ops)
-        self.apply_blob_analysis(previous_blobs, params)
+        self.apply_blob_analysis(previous_blobs, params, base_id=blob_base_id)
     
     def apply_change_detection(self, background, threshold, distance):
         '''
@@ -90,12 +90,12 @@ class Frame(Displayable):
         '''
         self.mask_refined = morph_ops.apply(self.mask_raw)
 
-    def apply_blob_analysis(self, previous_blobs, params):
+    def apply_blob_analysis(self, previous_blobs, params, base_id=0):
         '''
             Shorthand for performing the various blob analysis tasks
         '''
         self.apply_blob_labeling(create_output='blobs_labeled' in params.output_streams['foreground'])
-        self.apply_blob_remapping(previous_blobs, params.similarity_threshold, create_output='blobs_remapped' in params.output_streams['foreground'])
+        self.apply_blob_remapping(previous_blobs, params.similarity_threshold, base_id=base_id, create_output='blobs_remapped' in params.output_streams['foreground'])
         self.apply_classification(params.classification_threshold, create_output='blobs_classified' in params.output_streams['foreground'])
         self.apply_object_recognition(params.edge_threshold, params.edge_adaptation, create_output='blobs_detected' in params.output_streams['foreground'])
         self.generate_graphical_output()
@@ -118,22 +118,20 @@ class Frame(Displayable):
                     self.blobs_labeled[blob_mask > 0] = blob.color_palette[curr_label]
                     blob.write_text(self.blobs_labeled, str(blob.label))
 
-    def apply_blob_remapping(self, previous_blobs, similarity_threshold, create_output=False):
+    def apply_blob_remapping(self, previous_blobs, similarity_threshold, base_id=0, create_output=False):
         '''
-            Generates an ID for every blob searching for correspondences in the previous_blobs list by computing a similarity score
+            Generates a unique ID for every blob searching for correspondences in the previous_blobs list by computing a similarity score
         '''
         candidate_blobs = copy(previous_blobs)
         self.blobs_remapped = self.image_triple_channel.copy()
         
-        new_ids = 0
         for blob in self.blobs:
             matched_blob = blob.search_matching_blob(candidate_blobs, similarity_threshold)
 
             # When no match is found a new identifier is assigned
             if matched_blob is None:
-                prev_ids_number = max([x.id for x in previous_blobs], default=0)
-                new_ids += 1
-                matched_id = new_ids + prev_ids_number
+                base_id += 1
+                matched_id = base_id
             else:
                 blob.previous_match = matched_blob
                 matched_id = matched_blob.id
@@ -169,6 +167,7 @@ class Frame(Displayable):
                 else:
                     color = (0, 0, 255)
                 self.blobs_detected[blob.mask > 0] = color
+                blob.write_text(self.blobs_detected, blob.edge_score())
 
     def generate_graphical_output(self):
         '''

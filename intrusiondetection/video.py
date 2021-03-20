@@ -51,7 +51,7 @@ class Video:
             backgrounds.append(bg)
         return backgrounds
 
-    def intrusion_detection(self, params, initial_background, tuning=False):
+    def intrusion_detection(self, params, initial_background, tuning=False, stats=False):
         '''
             Application of the intrusion detection algorithm
         '''
@@ -66,7 +66,8 @@ class Video:
             csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             prev_fr = None
             prev_bg = initial_background
-
+            max_blob_id = 0
+            
             for fr in self.frames:
                 prev_blobs = []
                 if prev_fr is not None:
@@ -75,7 +76,10 @@ class Video:
                 bg_image = prev_bg.update_selective(fr, params.background_threshold, params.background_distance, params.background_alpha, params.background_morph_ops)
                 bg = Background(image=bg_image)
 
-                fr.intrusion_detection(params, bg, prev_blobs)
+                fr.intrusion_detection(params, bg, prev_blobs, blob_base_id=max_blob_id)
+
+                if len(fr.blobs) > 0:
+                    max_blob_id = max(max_blob_id, max([b.id for b in fr.blobs]))
 
                 for output_type, outputs in self.__outputs.items():
                     obj = fr if output_type == 'foreground' else prev_bg
