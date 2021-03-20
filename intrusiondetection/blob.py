@@ -158,12 +158,11 @@ class Blob:
             self.color = self.color_palette[self.color_map[BlobClass.FAKE]]
         return self.__is_present
 
-    def write_text(self, image, text, scale=.5, thickness=1):
+    def write_text(self, image, text, scale=.4, thickness=1):
         font = cv2.FONT_HERSHEY_SIMPLEX
-        textsize = cv2.getTextSize(text, font, scale, thickness)[0]
-        offset = textsize[0] // 2
-        #TODO: Text centering
-        #center = (self.cx - offset, self.cy - offset)
-        center = (self.cx, self.cy)
+        text = str(text)
+        x_offset, y_offset = cv2.getTextSize(text, font, scale, thickness)[0]
+        x_offset, y_offset =  x_offset , y_offset 
+        center = (self.cx - x_offset// 2, self.cy + y_offset// 2)
         cv2.putText(image, text, center, font, scale, (255,255,255), thickness, cv2.LINE_AA)
 
