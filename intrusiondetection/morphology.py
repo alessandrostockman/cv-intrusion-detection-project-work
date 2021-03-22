@@ -42,7 +42,10 @@ class MorphOpsSet:
 
     def apply(self, mask):
         '''
-           Applies the set of binary morhology operators to the given mask and returns the result 
+           Applies the set of binary morhology operators to the given mask and returns the result.
+           The method applies a 0-border to the image which is kept for the whole chain of operations 
+           for every single structuring element as opposed to OpenCV's function which crops it
+           after every elementary operation 
         '''
         for op in self.get():
             kernel_x, kernel_y = op.kernel.shape
