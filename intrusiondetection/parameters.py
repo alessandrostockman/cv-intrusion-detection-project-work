@@ -33,9 +33,14 @@ class ParameterSet:
         '''
             Decodes the global and tuning parameters dictionaries
         '''
-        self.output_directory = global_params.get('output_directory', None)
-        self.input_video = global_params.get('input_video', None)
-        self.output_streams = global_params.get('output_streams', None)
+        self.output_directory = global_params.get('output_directory', "output")
+        self.input_video = global_params.get('input_video', "input.avi")
+        self.output_streams = global_params.get('output_streams', {
+            'foreground': ['image_output', 'blobs_detected', 'blobs_classified', 'image_blobs', 'blobs_remapped',
+                'blobs_labeled', 'mask_refined', 'subtraction', 'mask_raw', 'mask_refined',],
+            'background': ['subtraction', 'mask_raw', 'mask_refined', 'image', 'blind']
+        })
+        self.store_outputs = global_params.get('store_outputs', False)
 
         self.initial_background_frames = tuning_params['initial_background_frames']
         self.initial_background_interpolation = tuning_params['initial_background_interpolation']

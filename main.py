@@ -27,7 +27,8 @@ def execute_intrusion_detection(input_path, output_dir, preset, tuning_mode=Fals
     params = ParameterSet(global_params={
         "input_video": input_path,
         "output_directory": output_dir,
-        "output_streams": streams
+        "output_streams": streams,
+        "store_outputs": True
     }, tuning_params=default_preset(preset))
     
     initial_background = Background(

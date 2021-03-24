@@ -68,8 +68,9 @@ class Frame(Displayable):
         self.blobs_detected = None
 
         self.blobs = []
+        self.max_blob_id = 0
 
-    def intrusion_detection(self, params, bg, previous_blobs, blob_base_id=0):
+    def intrusion_detection(self, params, bg, previous_blobs=[], blob_base_id=0):
         '''
             Performs the whole intrusion detection algorithm and computes the outputs
         '''
@@ -137,6 +138,8 @@ class Frame(Displayable):
                 matched_id = matched_blob.id
                 
             blob.id = matched_id
+            # Update max blob id (will be used as base_id for next iteration) 
+            self.max_blob_id = max(self.max_blob_id, blob.id)
 
             if create_output:
                 self.blobs_remapped[blob.mask > 0] = blob.color_palette[blob.id]
@@ -151,7 +154,7 @@ class Frame(Displayable):
             blob_class = blob.classify(classification_threshold)
 
             if create_output:
-                blob.write_text(self.blobs_classified, blob_class)
+                blob.write_text(self.blobs_classified, str(blob_class) + "\n" + str(blob.classification_score()))
 
     def apply_object_recognition(self, edge_threshold, edge_adaptation, create_output=False):
         '''

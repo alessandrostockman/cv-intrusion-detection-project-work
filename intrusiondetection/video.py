@@ -58,9 +58,10 @@ class Video:
         '''
 
         outputs_base_name = params.output_base_name + "_" if tuning else params.output_directory + "/"
-        self.__outputs = {output_type: {
-            key: self.create_output_stream(self.__w, self.__h, self.__fps, outputs_base_name + output_type + "_" + key + ".avi") for key in outputs
-        } for output_type, outputs in params.output_streams.items()}
+        if params.store_outputs:
+            self.__outputs = {output_type: {
+                key: self.create_output_stream(self.__w, self.__h, self.__fps, outputs_base_name + output_type + "_" + key + ".avi") for key in outputs
+            } for output_type, outputs in params.output_streams.items()}
 
         try:
             csv_file = open(outputs_base_name + "text.csv", mode='w')
@@ -79,29 +80,27 @@ class Video:
                 prev_blobs = []
                 if prev_fr is not None:
                     prev_blobs = prev_fr.blobs
+                    max_blob_id = max(max_blob_id, prev_fr.max_blob_id)
 
                 bg_image = prev_bg.update_selective(fr, params.background_threshold, params.background_distance, params.background_alpha, params.background_morph_ops)
                 bg = Background(image=bg_image)
 
                 fr.intrusion_detection(params, bg, prev_blobs, blob_base_id=max_blob_id)
 
-                #Update max blob id used in next iteration 
-                if len(fr.blobs) > 0:
-                    max_blob_id = max(max_blob_id, max([b.id for b in fr.blobs]))
-
                 #Dynamic output generation
-                for output_type, outputs in self.__outputs.items():
-                    obj = fr if output_type == 'foreground' else prev_bg
-                    for key, out in outputs.items():
-                        output_image = getattr(obj, key, None)
+                if params.store_outputs:
+                    for output_type, outputs in self.__outputs.items():
+                        obj = fr if output_type == 'foreground' else prev_bg
+                        for key, out in outputs.items():
+                            output_image = getattr(obj, key, None)
 
-                        if output_image is not None:
-                            #Converting output image into 8-bit unsigned integers three channels image
-                            if output_image.shape[-1] != 3:
-                                output_image = np.tile(output_image[:,:,np.newaxis], 3)
-                            if output_image.dtype != np.uint8:
-                                output_image = output_image.astype(np.uint8)                        
-                            out.write(output_image)
+                            if output_image is not None:
+                                #Converting output image into 8-bit unsigned integers three channels image
+                                if output_image.shape[-1] != 3:
+                                    output_image = np.tile(output_image[:,:,np.newaxis], 3)
+                                if output_image.dtype != np.uint8:
+                                    output_image = output_image.astype(np.uint8)                        
+                                out.write(output_image)
 
                 fr.generate_text_output(csv_writer, frame_index=self.__frame_index)
                 self.__frame_index += 1
