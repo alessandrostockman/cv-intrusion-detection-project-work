@@ -10,7 +10,7 @@ def default_preset(preset):
         ParameterPreset.FAST: preset_1,
         ParameterPreset.MEDIUM: preset_2,
         ParameterPreset.SLOW: preset_3
-    }[preset]
+    }.get(preset, None)
 
 preset_1 = {
         "initial_background_frames": 80,
