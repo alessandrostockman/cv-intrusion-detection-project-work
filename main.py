@@ -54,7 +54,7 @@ if __name__ == "__main__":
     parser.add_argument('-O', '--output', help='Output directory where the requested output are stored', default='output')
     parser.add_argument('-S', '--stats', help='Compute and print additional info on the elaborated data', action='store_true')
     parser.add_argument('-T', '--tuning', help='Activates tuning mode, in which all the algorithm steps are generated as output videos', action='store_true')
-    parser.add_argument('-P', '--preset', help='Preset of parameters used from fastest (1) to most accurate (3)', choices=['1','2','3'], default='1')
+    parser.add_argument('-P', '--preset', help='Preset of parameters used from most accurate (1) to fastest (3)', choices=['1','2','3'], default='1')
 
     args = parser.parse_args()
 

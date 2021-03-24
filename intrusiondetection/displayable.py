@@ -154,7 +154,7 @@ class Frame(Displayable):
             blob_class = blob.classify(classification_threshold)
 
             if create_output:
-                blob.write_text(self.blobs_classified, str(blob_class) + "\n" + str(blob.classification_score()))
+                blob.write_text(self.blobs_classified, str(blob_class) + " - " + str(blob.classification_score()))
 
     def apply_object_recognition(self, edge_threshold, edge_adaptation, create_output=False):
         '''

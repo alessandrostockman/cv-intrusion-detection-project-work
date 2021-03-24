@@ -64,8 +64,9 @@ class Video:
             } for output_type, outputs in params.output_streams.items()}
 
         try:
-            csv_file = open(outputs_base_name + "text.csv", mode='w')
-            csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            if params.store_outputs:
+                csv_file = open(outputs_base_name + "text.csv", mode='w')
+                csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             prev_fr = None
             prev_bg = initial_background
             max_blob_id = 0
@@ -102,7 +103,9 @@ class Video:
                                     output_image = output_image.astype(np.uint8)                        
                                 out.write(output_image)
 
-                fr.generate_text_output(csv_writer, frame_index=self.__frame_index)
+                if params.store_outputs:
+                    fr.generate_text_output(csv_writer, frame_index=self.__frame_index)
+                    
                 self.__frame_index += 1
                 prev_fr = fr
                 prev_bg = bg
@@ -118,7 +121,8 @@ class Video:
                         blob_data['classification_scores'].append(blob.classification_score())
                         stats_data['blobs'][blob.id] = blob_data
         finally:
-            csv_file.close()
+            if params.store_outputs:
+                csv_file.close()
 
         if stats:
             return stats_data
