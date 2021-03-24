@@ -50,13 +50,13 @@ def execute_intrusion_detection(input_path, output_dir, preset, tuning_mode=Fals
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-I', '--input', help='Input video used to compute the intrusion detection algorithm', default='input.avi')
-    parser.add_argument('-O', '--output', help='Input video used to compute the intrusion detection algorithm', default='output')
+    parser.add_argument('-O', '--output', help='Output directory where the requested output are stored', default='output')
     parser.add_argument('-S', '--stats', help='Compute and print additional info on the elaborated data', action='store_true')
-    parser.add_argument('-T', '--tuning', help='Activates tuning mode, in which all output videos step are generated', action='store_true')
-    parser.add_argument('-P', '--preset', help='Preset of parameters used from fastest (1) to most accurate (3)', choices=range(1, 4), default=1)
+    parser.add_argument('-T', '--tuning', help='Activates tuning mode, in which all the algorithm steps are generated as output videos', action='store_true')
+    parser.add_argument('-P', '--preset', help='Preset of parameters used from fastest (1) to most accurate (3)', choices=['1','2','3'], default='1')
 
     args = parser.parse_args()
 
     start_time = time.time()
-    execute_intrusion_detection(args.input, args.output, preset=ParameterPreset(args.preset), tuning_mode=args.tuning, compute_stats=args.stats)
+    execute_intrusion_detection(args.input, args.output, preset=ParameterPreset(int(args.preset)), tuning_mode=args.tuning, compute_stats=args.stats)
     print("Computation finished in {} seconds".format(round(time.time() - start_time, 4)))

@@ -56,7 +56,7 @@ preset_2 = {
         ),
         "similarity_threshold": 80,
         "classification_threshold": 2.6,
-        "edge_threshold": 70,
+        "edge_threshold": 110,
         "edge_adaptation": 0.3
     }
 
