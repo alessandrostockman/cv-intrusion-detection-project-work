@@ -85,15 +85,18 @@ class Video:
 
                 fr.intrusion_detection(params, bg, prev_blobs, blob_base_id=max_blob_id)
 
+                #Update max blob id used in next iteration 
                 if len(fr.blobs) > 0:
                     max_blob_id = max(max_blob_id, max([b.id for b in fr.blobs]))
 
+                #Dynamic output generation
                 for output_type, outputs in self.__outputs.items():
                     obj = fr if output_type == 'foreground' else prev_bg
                     for key, out in outputs.items():
                         output_image = getattr(obj, key, None)
 
                         if output_image is not None:
+                            #Converting output image into 8-bit unsigned integers three channels image
                             if output_image.shape[-1] != 3:
                                 output_image = np.tile(output_image[:,:,np.newaxis], 3)
                             if output_image.dtype != np.uint8:
