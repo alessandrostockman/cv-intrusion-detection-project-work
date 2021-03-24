@@ -32,7 +32,7 @@ class Blob:
         self.__frame_pixels = self.__frame_width * self.__frame_height
         self.__frame_diag = math.sqrt(self.__frame_width ** 2 + self.__frame_height ** 2)
         self.__blob_class = None
-        self.__is_present = True
+        self.__is_present = None
         
         self.compute_features()
 

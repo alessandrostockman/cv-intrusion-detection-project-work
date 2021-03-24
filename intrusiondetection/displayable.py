@@ -116,7 +116,7 @@ class Frame(Displayable):
 
                 if create_output:
                     self.blobs_labeled[blob_mask > 0] = blob.color_palette[curr_label]
-                    blob.write_text(self.blobs_labeled, str(blob.label))
+                    blob.write_text(self.blobs_labeled, blob.label)
 
     def apply_blob_remapping(self, previous_blobs, similarity_threshold, base_id=0, create_output=False):
         '''
@@ -140,7 +140,7 @@ class Frame(Displayable):
 
             if create_output:
                 self.blobs_remapped[blob.mask > 0] = blob.color_palette[blob.id]
-                blob.write_text(self.blobs_remapped, str(blob.id))
+                blob.write_text(self.blobs_remapped, blob.id)
 
     def apply_classification(self, classification_threshold, create_output=False):
         '''
@@ -151,7 +151,7 @@ class Frame(Displayable):
             blob_class = blob.classify(classification_threshold)
 
             if create_output:
-                blob.write_text(self.blobs_classified, str(blob_class))
+                blob.write_text(self.blobs_classified, blob_class)
 
     def apply_object_recognition(self, edge_threshold, edge_adaptation, create_output=False):
         '''
@@ -191,7 +191,7 @@ class Background(Displayable):
 
     def __init__(self, input_video_path=None, interpolation=None, frames_n=None, image=None):
         '''
-            Initiziales the background image either by using a video source and an interpolation method or by assigning directly an image 
+            Initializes the background image either by using a video source and an interpolation method or by assigning directly an image 
         '''
         self.subtraction = None
         self.mask_raw = None
