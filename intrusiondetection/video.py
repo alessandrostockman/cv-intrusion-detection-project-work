@@ -1,3 +1,4 @@
+import os
 import csv
 import numpy as np
 import cv2
@@ -11,6 +12,9 @@ class Video:
     Class Video defining the video that will be written in output
     '''
     def __init__(self, input_video_path):
+        if not os.path.isfile(input_video_path):
+            raise IOError("Video " + input_video_path + " doesn't exist")
+
         self.frames = []
         self.backgrounds = []
         self.__frame_index = 0
@@ -57,12 +61,16 @@ class Video:
             Application of the intrusion detection algorithm
         '''
 
+        if not os.path.exists(params.output_directory):
+            os.makedirs(params.output_directory)
+
         outputs_base_name = params.output_base_name + "_" if tuning else params.output_directory + "/"
         if params.store_outputs:
             self.__outputs = {output_type: {
                 key: self.create_output_stream(self.__w, self.__h, self.__fps, outputs_base_name + output_type + "_" + key + ".avi") for key in outputs
             } for output_type, outputs in params.output_streams.items()}
 
+        csv_file = None
         try:
             if params.store_outputs:
                 csv_file = open(outputs_base_name + "text.csv", mode='w')
@@ -121,7 +129,7 @@ class Video:
                         blob_data['classification_scores'].append(blob.classification_score())
                         stats_data['blobs'][blob.id] = blob_data
         finally:
-            if params.store_outputs:
+            if params.store_outputs and csv_file is not None:
                 csv_file.close()
 
         if stats:

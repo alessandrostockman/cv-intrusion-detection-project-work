@@ -1,3 +1,4 @@
+import os
 from copy import copy
 import numpy as np
 import cv2
@@ -202,6 +203,9 @@ class Background(Displayable):
         self.blind = None
 
         if input_video_path is not None and interpolation is not None and frames_n is not None:
+            if not os.path.isfile(input_video_path):
+                raise IOError("Video " + input_video_path + " doesn't exist")
+
             # The background image is computed using the interpolation function over the first frames_n number of frames of the given video
             cap = cv2.VideoCapture(input_video_path)
             bg = []
