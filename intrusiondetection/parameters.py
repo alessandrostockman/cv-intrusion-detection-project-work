@@ -29,13 +29,13 @@ class ParameterList:
 
 class ParameterSet:
 
-    def __init__(self, global_params, tuning_params):
+    def __init__(self, global_params={}, tuning_params={}):
         '''
             Decodes the global and tuning parameters dictionaries
         '''
-        self.output_directory = global_params['output_directory']
-        self.input_video = global_params['input_video']
-        self.output_streams = global_params['output_streams']
+        self.output_directory = global_params.get('output_directory', None)
+        self.input_video = global_params.get('input_video', None)
+        self.output_streams = global_params.get('output_streams', None)
 
         self.initial_background_frames = tuning_params['initial_background_frames']
         self.initial_background_interpolation = tuning_params['initial_background_interpolation']

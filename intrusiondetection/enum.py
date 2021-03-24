@@ -14,3 +14,8 @@ class BlobClass(Enum):
 class BackgroundMethod(Enum):
     BLIND = 1
     SELECTIVE = 2
+
+class ParameterPreset(Enum):
+    FAST = 1
+    MEDIUM = 2
+    SLOW = 3
