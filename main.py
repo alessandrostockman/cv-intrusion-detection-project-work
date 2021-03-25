@@ -42,7 +42,7 @@ def execute_intrusion_detection(input_path, output_dir, preset, tuning_mode=Fals
 
     if stats_data is not None:
         print_data = lambda title, arr : print(title, "-", "Max:", max(arr), "- Min:", min(arr), "- Avg:", round(sum(arr) / len(arr),2))
-        print_data("Times", stats_data['times'])
+        print_data("-- Times", stats_data['times'])
         for idx, data in stats_data['blobs'].items():
             print("-- Data for BLOB #" + str(idx))
             print_data("---- Edge Scores", data['edge_scores'])
