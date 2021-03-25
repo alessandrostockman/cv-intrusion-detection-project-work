@@ -16,6 +16,6 @@ class BackgroundMethod(Enum):
     SELECTIVE = 2
 
 class ParameterPreset(Enum):
-    FAST = 1
+    SLOW = 1
     MEDIUM = 2
-    SLOW = 3
+    FAST = 3
