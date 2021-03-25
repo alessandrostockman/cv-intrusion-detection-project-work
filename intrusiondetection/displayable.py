@@ -8,14 +8,15 @@ from intrusiondetection.blob import Blob
 
 class Displayable:
 
-    def display_row(self, image_dicts):
+    def display_row(self, cols):
         '''
             Auxiliary method for displaying a set of images by a lsit of attribute names
         '''
-        plt.figure(figsize=(20, 10))
+        cols_number = len(cols)
+        plt.figure(figsize=(5 * cols_number, 2.5 * cols_number))
 
-        for index, image_dict in enumerate(image_dicts):
-            plt.subplot(1, len(image_dicts), index+1)
+        for col_index, image_dict in enumerate(cols):
+            plt.subplot(1, cols_number, col_index+1)
             img = getattr(self, image_dict['key'])
             plt.axis('off')
             if image_dict['title'] is not None:
@@ -27,12 +28,12 @@ class Displayable:
                 plt.imshow(img, cmap='gray', vmin=0, vmax=255)
 
 
-    def display(self, keys, title=None, show=True):
+    def display(self, keys, title=None, show=True, cols_number=1):
         '''
             Auxiliary method for displaying the image by attribute name
         '''
         if show:
-            plt.figure(figsize=(6.4, 4.8))
+            plt.figure(figsize=(5 * cols_number, 2.5 * cols_number))
 
         img = getattr(self, keys)
         plt.axis('off')
@@ -43,6 +44,7 @@ class Displayable:
                 plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
         else:
             plt.imshow(img, cmap='gray', vmin=0, vmax=255)
+
         if show:
             plt.show()
 
