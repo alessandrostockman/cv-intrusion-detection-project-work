@@ -6,7 +6,7 @@ class ParameterList:
 
     def __init__(self, params):
         '''
-            Creates a ParameterSet for every combination of given parameters
+            Creates a ParameterSet for every combination of given parameters to assist during tuning
         '''
 
         global_keys = {'input_video', 'output_directory', 'output_streams'}

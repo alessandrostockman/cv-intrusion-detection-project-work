@@ -6,12 +6,14 @@ from intrusiondetection.morphology import MorphOpsSet
 # Distance Functions
 
 def distance_manhattan(img1, img2):
-    ''' returns a matrix of floats64 that represents the manhattan distance between the two images
+    ''' 
+        Performs manhattan distance on the given images
     '''
     return np.abs(img2.astype(float) - img1.astype(float))
 
 def distance_euclidean(img1, img2):
-    ''' returns a matrix of floats64 that represents the euclidean distance between the two images
+    ''' 
+        Performs euclidean distance on the given images
     '''
     return (np.sqrt((img2.astype(float) - img1.astype(float)) ** 2)).astype(np.uint8)
 

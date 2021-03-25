@@ -2,7 +2,7 @@ from enum import Enum
 
 class BlobClass(Enum):
     '''
-        Enum to distinguish the type of the blob
+        Blobs possible classifications
     '''
     PERSON = 1
     OBJECT = 2
@@ -12,10 +12,16 @@ class BlobClass(Enum):
         return self.name
 
 class BackgroundMethod(Enum):
+    '''
+        Background update methods
+    '''
     BLIND = 1
     SELECTIVE = 2
 
 class ParameterPreset(Enum):
+    '''
+        Parameters preset identifiers
+    '''
     SLOW = 1
     MEDIUM = 2
     FAST = 3
