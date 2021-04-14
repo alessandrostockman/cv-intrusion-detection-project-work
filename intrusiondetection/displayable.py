@@ -106,7 +106,7 @@ class Frame(Displayable):
 
     def apply_blob_labeling(self, create_output=False):
         '''
-            Creates a Blob object for every blob found using OpenCV's connectedComponents function
+            Creates a Blob object for every blob found using OpenCV's connectedComponents function, performing thus BBDT algorithm with 8-way connectivity
         '''
         num_labels, labels = cv2.connectedComponents(self.mask_refined)
         self.blobs_labeled = self.image_triple_channel.copy()
