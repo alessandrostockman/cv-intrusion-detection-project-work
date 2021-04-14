@@ -6,7 +6,7 @@ The aim is the development of an intrusion detection system able to perceive mov
 
 Input Example             |  Output Example
 :-------------------------:|:-------------------------:
-![alt text](https://github.com/alessandrostockman/cv-intrusion-detection-project-work/res/input-example.gif)  |  ![alt text](https://github.com/alessandrostockman/cv-intrusion-detection-project-work/res/output-example.gif)
+![GIF](https://github.com/alessandrostockman/cv-intrusion-detection-project-work/blob/master/res/input-example.gif)  |  ![GIF](https://github.com/alessandrostockman/cv-intrusion-detection-project-work/blob/master/res/output-example.gif)
 
 ## Requirements
 
